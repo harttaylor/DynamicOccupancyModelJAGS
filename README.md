@@ -1,2 +1,2 @@
 # DynamicOccupancyModelJAGS
-This line is from RStudio
+Scripts still in progress
