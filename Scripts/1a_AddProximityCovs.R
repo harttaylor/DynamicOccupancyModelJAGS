@@ -77,7 +77,7 @@ write.csv(yearly_covariates, "harvestages.csv")
 
 
 
-yearly_covariates <- read.csv("yearly_covsdist_interaction_19Jan2024.csv")
+yearly_covariates <- read.csv("Data/yearly_covsdist_interaction_19Jan2024.csv")
 # Yearly covariates (human footprint and treatment)as a matrix (format for jags model) 
 # Assuming 'yearly_covariates' is your data frame
 # Extract unique sites and years
@@ -91,7 +91,7 @@ years <- unique(yearly_covariates$YEAR)
 #yearly_covariates$treatment_3 <- as.numeric(yearly_covariates$treatment == "riparian")
 
 # Make an array for harvest variables 
-num_covariates <- 2  # 5 original covariates + 2 treatment dummies
+num_covariates <- 3  # 5 original covariates + 2 treatment dummies
 
 # Initialize the array with NA values
 harvest_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -102,7 +102,7 @@ for (i in 1:length(sites)) {
     
     if (nrow(covs_rows) > 0) {
       first_row <- covs_rows[1, ]
-      covariate_data <- first_row[, c("MEANAGE.565.harvest",
+      covariate_data <- first_row[, c("NEAR.DIST.harvest", "MEANAGE.565.harvest",
                                       "harvest_interaction")]
       harvest_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } else {
@@ -114,7 +114,7 @@ for (i in 1:length(sites)) {
 }
 
 # Make an array for non-harvest variables  
-num_covariates <- 4 
+num_covariates <- 3
 
 # Initialize the array with NA values
 nonharvest_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -127,7 +127,7 @@ for (i in 1:length(sites)) {
       first_row <- covs_rows[1, ]
       covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
                                       "NEAR.DIST.unimproved.road", 
-                                      "NEAR.DIST.pipeline", "NEAR.DIST.harvest")]
+                                      "NEAR.DIST.pipeline")]
       nonharvest_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } 
   }
@@ -197,7 +197,7 @@ for (site in 1:nsite) {
   }
 }
 
-save(detection_covariates_array, yearly_covariates_array, first_year_covariates, sites_to_keep, max_values, min_values, file = "allCLcovs24Jan2024.Rdata")
+save(detection_covariates_array, harvest_covariates_array, nonharvest_covariates_array , first_year_covariates, sites_to_keep, max_values, min_values, file = "harvestvsnoharvestcovariates29Jan2024.Rdata")
 
 
 

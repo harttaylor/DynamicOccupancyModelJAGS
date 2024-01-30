@@ -4,11 +4,11 @@ setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModel
 library(jagsUI)
 
 # Set up some required arrays
-load("dets_array.RData")
+load("Data/dets_array.RData")
 y <- dets_array
 
 # Get the covariate arrays 
-load("allCLcovs24Jan2024.Rdata")
+load("Data/allCLcovs24Jan2024.Rdata")
 
 #length(which(is.na(dets_array)))#1042
 
@@ -72,51 +72,6 @@ for (i in 1:dim1) {
 }
 
 
-# Get unique sites
-unique_sites = unique(yearly_covariates$SS)
-num_sites = length(unique_sites)
-
-# Initialize the harvest vector
-harvest = rep(NA, num_sites)
-
-# Loop through each unique site
-for (site in unique_sites) {
-  # Find the rows corresponding to the current site
-  site_rows = which(yearly_covariates$SS == site)
-  
-  # Determine the harvest status for the site
-  # Assuming the harvest condition is consistent across years for each site
-  # Using the first year as representative
-  first_year_row = site_rows[1]
-  harvest_status = ifelse(yearly_covariates$MEANAGE.565.harvest[first_year_row] < 30, 1, 0)
-  
-  # Assign the harvest status to the vector
-  harvest[match(site, unique_sites)] = harvest_status
-}
-
-
-
-# Get unique sites and years and count them
-unique_sites = unique(yearly_covariates$SS)
-unique_years = unique(yearly_covariates$YEAR)
-num_sites = length(unique_sites)
-num_years = length(unique_years)
-
-# Initialize the harvest matrix
-harvest = matrix(0, nrow = num_sites, ncol = num_years)
-
-# Loop through each row of the DataFrame
-for (row in 1:nrow(yearly_covariates)) {
-  # Map site and year to numeric indices
-  i = match(yearly_covariates$SS[row], unique_sites)
-  k = match(yearly_covariates$YEAR[row], unique_years)
-  
-  # Determine the harvest status for each site and year
-  harvest_status = ifelse(yearly_covariates$MEANAGE.565.harvest[row] < 30, 1, 0)
-  
-  # Assign the harvest status to the matrix
-  harvest[i, k] = harvest_status
-}
 
 
 
