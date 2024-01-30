@@ -3,13 +3,13 @@
 library(ggplot2)
 
 # Example model coefficients from your output
-intercept_with_harvest <- -2.251  #out_cov_harv2$mean$beta.gamma[1,1]
-slope_distance_with_harvest <- 2.061  # beta.gamma[2,1]
-slope_interaction_with_harvest <- 0.928  # beta.gamma[4,1]
+intercept_with_harvest <- -2.621 # mean intercept from alpha.gamma random effects 
+slope_distance_with_harvest <- out_cov_randomyeareffects$mean$beta.gamma[1,1]
+slope_interaction_with_harvest <- out_cov_randomyeareffects$mean$beta.gamma[3,1]
 
-intercept_no_harvest <- 5.062  # beta.gamma[1,2]
-slope_distance_no_harvest <- 4.409  # beta.gamma[2,2]
-slope_interaction_no_harvest <- -7.377  # beta.gamma[4,2]
+intercept_no_harvest <- -2.621
+slope_distance_no_harvest <- out_cov_randomyeareffects$mean$beta.gamma[1,2] 
+slope_interaction_no_harvest <- out_cov_randomyeareffects$mean$beta.gamma[3,2] 
 
 # Define a range for harvest age and distance to harvest
 distance_to_harvest <- seq(0, 1, length.out = 100)

@@ -1,6 +1,15 @@
 
 model{
-  # Priors 
+ # Hyperpriors 
+  mu.phi ~ dnorm(0, 0.1)
+  sd.phi ~ dunif(0, 5)
+  tau.phi <- pow(sd.phi, -2)
+  
+  mu.gamma ~ dnorm(0, 0.1)
+  sd.gamma ~ dunif(0, 5)
+  tau.gamma <- pow(sd.gamma, -2)
+  
+# Priors 
   # Psi 
   for(i in 1:nbeta.psi){
     beta.psi[i] ~ dnorm(0, 0.01)
@@ -34,6 +43,12 @@ model{
    for(i in 1:nbeta.p){
      beta.p[i] ~ dnorm(0, 0.01)  # Detection  
   }
+
+ # Random year effects
+  for (k in 2:nyear){
+    alpha.phi[k] ~ dnorm(mu.phi, tau.phi)
+    alpha.gamma[k] ~ dnorm(mu.gamma, tau.gamma)
+ }
   
   # Ecological sub-model 
   for(i in 1:nsite){
@@ -42,8 +57,8 @@ model{
     
     for(k in 2:nyear){
 	  # The harvest[i] indexes which column of betas to use (1 or 2) 
-      logit(phi[i, k - 1]) <- inprod(beta.phi[, harvest[i,k]], x.phi.harvest[i, k, ]) + inprod(delta.phi, x.phi[i, k, ])
-      logit(gamma[i, k - 1]) <- inprod(beta.gamma[, harvest[i,k]], x.gamma.harvest[i, k, ]) + inprod(delta.gamma, x.gamma[i, k, ])
+      logit(phi[i, k - 1]) <- alpha.phi[k] + inprod(beta.phi[, harvest[i,k]], x.phi.harvest[i, k, ]) + inprod(delta.phi, x.phi[i, k, ])
+      logit(gamma[i, k - 1]) <- alpha.gamma[k] + inprod(beta.gamma[, harvest[i,k]], x.gamma.harvest[i, k, ]) + inprod(delta.gamma, x.gamma[i, k, ])
       
       muZ[i, k] <- z[i, k - 1]*phi[i, k - 1] + (1 - z[i, k - 1])*gamma[i, k - 1] 
       z[i, k] ~ dbern(muZ[i, k])
@@ -60,6 +75,7 @@ model{
      }
     }
   }  
+
  # Derived variable
  for(k in 1:nyear) {
    N[k] <- sum(z[,k]) # no. sites occupied for each year
