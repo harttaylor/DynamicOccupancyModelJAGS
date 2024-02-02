@@ -1,0 +1,58 @@
+
+model{
+  # Priors 
+  # Psi 
+  for(i in 1:nbeta.psi){
+    beta.psi[i] ~ dnorm(0, 0.01)
+  }
+  
+  # Phi: create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest
+  for(i in 1:nbeta.phi){
+    for(k in 1:2){
+      beta.phi[i, k] ~ dnorm(0, 0.01)
+	}
+  }
+  
+  # Gamma: create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest 
+  for(i in 1:nbeta.gamma){
+    for(k in 1:2){
+      beta.gamma[i, k] ~ dnorm(0, 0.01)
+	}
+  }
+   
+  # P 
+   for(i in 1:nbeta.p){
+     beta.p[i] ~ dnorm(0, 0.01)  # Detection  
+  }
+  
+
+  # Ecological sub-model 
+  for(i in 1:nsite){
+    logit(psi[i]) <- inprod(beta.psi, x.psi[i, ])
+    z[i, 1] ~ dbern(psi[i])
+    
+    for(k in 2:nyear){
+	  # The harvest[i] indexes which column of betas to use (1 or 2) 
+      logit(phi[i, k - 1]) <- inprod(beta.phi[, harvest[i,k]], x.phi.harvest[i, k, ])
+      logit(gamma[i, k - 1]) <- inprod(beta.gamma[, harvest[i,k]], x.gamma.harvest[i, k, ])
+      
+      muZ[i, k] <- z[i, k - 1]*phi[i, k - 1] + (1 - z[i, k - 1])*gamma[i, k - 1] 
+      z[i, k] ~ dbern(muZ[i, k])
+    }
+  }
+  
+  # Detection sub-model
+  for(i in 1:nsite){
+    for(k in 1:nyear){
+     for(j in 1:J[i, k]){
+       logit(p[i, k, j]) <- inprod(beta.p, x.p[i, k, j, ])
+       muy[i, k, j]  <- z[i, k]*p[i, k, j]
+       y[i, k, j] ~ dbern(muy[i, k, j])
+     }
+    }
+  }  
+ # Derived variable
+ for(k in 1:nyear) {
+   N[k] <- sum(z[,k]) # no. sites occupied for each year
+  }
+}

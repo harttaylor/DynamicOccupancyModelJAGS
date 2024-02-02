@@ -1,6 +1,6 @@
 
 
-save(win.data, inits, params, out_cov, file = "Model eval/out_cov_files.Rdata")
+save(win.data, inits, params, out_cov_edge, file = "Results/Model Eval/out_cov_edge_files.Rdata")
 
 
 library(jagsUI)
@@ -9,7 +9,8 @@ library(ROCR)
 library(reshape2)
 
 
-post <- out_cov_dist_interaction30000$sims.list
+# AUC for distance to edge model with no random year effect 
+post <- out_cov_edge$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
 
@@ -17,7 +18,6 @@ psi.pred <- array(dim=c(nsite, n.sav))
 Z.est <- array(dim=c(nsite, n.sav))
 year = 2
 
-post$
 
 AUC <- rep(NA, n.sav)
 fpr <- array(dim=c(n.sav, nsite + 1))
@@ -46,7 +46,7 @@ p1 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
   geom_abline(intercept = 0, slope = 1, linetype="dashed") +
   ylab("True positive rate") +
   xlab("False positive rate") + theme_bw()
-print(p1)
+ggsave("Results/Model Eval/ROC_EDGE.png")
 
 ROC2 <- ROC1[sample(nrow(ROC1), size = 1000), ]
 ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
@@ -54,32 +54,25 @@ ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
   geom_abline(intercept = 0, slope = 1, linetype="dashed") +
   ylab("True positive rate") +
   xlab("False positive rate") + theme_bw()
+ggsave("Results/Model Eval/AUC_EDGE.png")
 
-
-mean(AUC) # 0.8953861 for out_cov_dist_interaction30000
-
-
-
+mean(AUC) # 0.8893745
 
 
 
 
 
 
-
-
-
-
-post <- out_cov_interact_notrt$sims.list
+# AUC for distance to edge model with the random year effect 
+post <- out_cov_edge_RE$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
 
 psi.pred <- array(dim=c(nsite, n.sav))
 Z.est <- array(dim=c(nsite, n.sav))
 year = 2
-
   
-  AUC <- rep(NA, n.sav)
+AUC <- rep(NA, n.sav)
 fpr <- array(dim=c(n.sav, nsite + 1))
 tpr <- array(dim=c(n.sav, nsite + 1))
 for(i in 1:n.sav){
@@ -101,7 +94,61 @@ ROC1 <- data.frame(fpr = fprm$value,
                    iter = rep(fprm$iter, 2))
 
 
-p2 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
+p1 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
+  geom_line(alpha=0.05, color="blue") +
+  geom_abline(intercept = 0, slope = 1, linetype="dashed") +
+  ylab("True positive rate") +
+  xlab("False positive rate") + theme_bw()
+print(p1)
+ggsave("Results/Model Eval/ROC_EDGE_RE.png")
+
+ROC2 <- ROC1[sample(nrow(ROC1), size = 1000), ]
+ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
+  geom_line(alpha=1, color="red") +
+  geom_abline(intercept = 0, slope = 1, linetype="dashed") +
+  ylab("True positive rate") +
+  xlab("False positive rate") + theme_bw()
+ggsave("Results/Model Eval/AUC_EDGE_RE.png")
+
+mean(AUC) # 0.904973 for out_cov_edge_RE at 12000 iterations and 0.9041178 at 18000 iterations 
+
+
+
+
+
+#AUC for harvest model no interaction 
+post <- out_cov_distnoINT$sims.list
+n.sav <- dim(post$z)[1] 
+nsite <- win.data$nsite
+
+psi.pred <- array(dim=c(nsite, n.sav))
+Z.est <- array(dim=c(nsite, n.sav))
+year = 2
+
+
+AUC <- rep(NA, n.sav)
+fpr <- array(dim=c(n.sav, nsite + 1))
+tpr <- array(dim=c(n.sav, nsite + 1))
+for(i in 1:n.sav){
+  psi.vals <- post$muZ[i, , 2]
+  z.vals <- post$z[i, , 2]
+  pred <- prediction(psi.vals, factor(z.vals, levels = c("0", "1")))
+  perf <- performance(pred, "auc")
+  AUC[i] <- perf@y.values[[1]]
+  perf <- performance(pred, "tpr","fpr")
+  fpr[i, ] <- perf@x.values[[1]]
+  tpr[i, ] <- perf@y.values[[1]]
+}
+
+
+fprm <- melt(fpr, varnames=c("iter", "site"))
+tprm <- melt(tpr, varnames = c("iter", "site"))
+ROC1 <- data.frame(fpr = fprm$value,
+                   tpr = tprm$value,
+                   iter = rep(fprm$iter, 2))
+
+
+p3 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
   geom_line(alpha=0.05, color="blue") +
   geom_abline(intercept = 0, slope = 1, linetype="dashed") +
   ylab("True positive rate") +
@@ -115,11 +162,11 @@ ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
   xlab("False positive rate") + theme_bw()
 
 
-mean(AUC) # 0.8979226
+mean(AUC) # 0.8953197 for harvest no INT 
 
 
 
-
+#AUC for harvest model with interaction 
 post <- out_cov_distnoINT$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
@@ -166,9 +213,6 @@ ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
 
 
 mean(AUC) # 0.8953197 for distnoINT
-
-
-
 
 
 # Model validation using loo (Leave-one-out cross validation)
