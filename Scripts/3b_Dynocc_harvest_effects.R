@@ -195,9 +195,9 @@ params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi
 
 
 # MCMC settings
-ni <- 12000
+ni <- 24000
 nt <- 1
-nb <- 6000
+nb <- 12000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi.harvest = x.phi.harvest, 

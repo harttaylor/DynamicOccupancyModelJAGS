@@ -58,6 +58,15 @@ for(i in 1:dim(yearly_covariates_array)[2]){
 }
 
 
+# Create x.phi and x.gamma arrays for LOG distance to edge covariates 
+#log.x.phi <- array(NA, dim = c(dim(log_dist_array)[1], dim(log_dist_array)[2], dim(log_dist_array)[3] + 1))
+#for(i in 1:dim(log_dist_array)[2]){
+ # t <- cbind(rep(1, dim(log_dist_array)[1]), log_dist_array[, i, ])
+  #log.x.phi[, i, ] <- t
+#}
+
+#log.x.gamma <- log.x.phi
+
 
 # Add covariates on p
 # Adding an intercept
@@ -81,6 +90,7 @@ for (i in 1:dim(x.p)[1]) {
 
 
 # Run distance to edge model with no random year effect 
+# But with a log effect 
 
 params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
 
@@ -106,7 +116,7 @@ print(out_cov_edge)
 
 
 
-saveRDS(out_cov_edge, file = "Results/EDGE_resultsJan31.rds")
+saveRDS(out_cov_edge, file = "Results/EDGE_resultsFeb3.rds")
 
 
 

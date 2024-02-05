@@ -3,7 +3,8 @@
 setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModelJAGS")
 #load("Data/dets_array.Rdata")
 
-yearly_covariates <- read.csv("UnscaledCovariatesJan31.csv") # These are the final covariates where when there is both pipe and road, pipe is set to 1 (1km away), and they only have 114 sites and year 2004 is removed
+yearly_covariates <- read.csv("Data/UnscaledCovariatesJan31.csv") # These are the final covariates where when there is both pipe and road, pipe is set to 1 (1km away), and they only have 114 sites and year 2004 is removed
+
 # Select relevant covariates along with site names (SS column) and year
 distance_covariates <- yearly_covariates[c("SS", "YEAR", "NEAR.DIST.conventional.seismic", 
                                            "NEAR.DIST.unimproved.road", 
@@ -23,6 +24,10 @@ names(scaled_covariates) <- covariate_columns_to_scale
 
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
+yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 0.001)
+yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 0.001)
+yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 0.001)
+yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 0.001)
 
 # Yearly covariates (human footprint and treatment)as a matrix (format for jags model) 
 # Extract unique sites and years
@@ -51,6 +56,39 @@ for (i in 1:length(sites)) {
       # Print for diagnostic purposes
       print(paste("No data for site:", sites[i], "year:", years[j]))
       yearly_covariates_array[i, j, ] <- rep(NA, num_covariates)
+    }
+  }
+}
+
+#"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
+
+# Make an array for the log distances 
+distance_columns <- c("NEAR.DIST.conventional.seismic", 
+                      "NEAR.DIST.unimproved.road", 
+                      "NEAR.DIST.pipeline",
+                      "NEAR.DIST.harvest")
+
+log_covariates <- as.data.frame(lapply(distance_columns, function(column_name) {
+  log(yearly_covariates[[column_name]] + 0.001)
+}))
+
+# Original column names for the log-transformed covariates
+names(log_covariates) <- paste("LOG", distance_columns, sep=".")
+
+# Combine the 'SS' and 'YEAR' columns with the log-transformed covariates
+yearly_covariates_log <- cbind(yearly_covariates[c("SS", "YEAR")], log_covariates)
+
+# Preparing the array for log-transformed distance variables
+log_dist_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
+
+for(i in 1:length(sites)) {
+  for(j in 1:length(years)) {
+    covs_rows <- yearly_covariates_log[yearly_covariates_log$SS == sites[i] & yearly_covariates_log$YEAR == years[j], ]
+    
+    if(nrow(covs_rows) > 0) {
+      first_row <- covs_rows[1,]
+      log_covariates <- first_row[, paste("LOG", distance_columns, sep=".")]
+      log_dist_array[i, j, ] <- as.numeric(log_covariates)  # Assign the log-transformed covariates here
     }
   }
 }

@@ -1,4 +1,3 @@
-
 model{
   # Priors 
   # Psi 
@@ -11,11 +10,11 @@ model{
     beta.phi[i] ~ dnorm(0, 0.01)
   }
   
-  # Gamma 
+# Gamma 
   for(i in 1:nbeta.gamma){ 
     beta.gamma[i] ~ dnorm(0, 0.01)
   }
-  
+
   # P 
    for(i in 1:nbeta.p){
      beta.p[i] ~ dnorm(0, 0.01)  # Detection  
