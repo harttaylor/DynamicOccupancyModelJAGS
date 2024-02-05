@@ -24,10 +24,17 @@ names(scaled_covariates) <- covariate_columns_to_scale
 
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
+# Add log distances 
 yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 0.001)
 yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 0.001)
 yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 0.001)
 yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 0.001)
+log(0.001)
+# try with quadratic distances 
+yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
+yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
+yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
+yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
 
 # Yearly covariates (human footprint and treatment)as a matrix (format for jags model) 
 # Extract unique sites and years
@@ -36,7 +43,7 @@ years <- unique(yearly_covariates$YEAR)
 
 
 # Make an array for distance variables 
-num_covariates <- 4
+num_covariates <- 8
 
 # Initialize the array with NA values
 yearly_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -50,7 +57,7 @@ for (i in 1:length(sites)) {
       covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
                                       "NEAR.DIST.unimproved.road", 
                                       "NEAR.DIST.pipeline",
-                                      "NEAR.DIST.harvest")]
+                                      "NEAR.DIST.harvest", "seis.2", "road.2", "pipe.2", "harv.2")]
       yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } else {
       # Print for diagnostic purposes
@@ -61,6 +68,7 @@ for (i in 1:length(sites)) {
 }
 
 #"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
+#"seis.2", "road.2", "pipe.2", "harv.2"
 
 # Make an array for the log distances 
 distance_columns <- c("NEAR.DIST.conventional.seismic", 
