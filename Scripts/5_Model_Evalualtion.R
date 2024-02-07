@@ -1,4 +1,4 @@
-
+harvest_interaction <- readRDS("Results/harvest_interaction.rds")
 
 save(win.data, inits, params, out_cov_edge, file = "Results/Model Eval/out_cov_edge_files.Rdata")
 
@@ -115,59 +115,68 @@ mean(AUC) # 0.904973 for out_cov_edge_RE at 12000 iterations and 0.9041178 at 18
 
 
 
-
 #AUC for harvest model no interaction 
-post <- out_cov_distnoINT$sims.list
-n.sav <- dim(post$z)[1] 
-nsite <- win.data$nsite
+post <- out_harvest_interaction$sims.list
+n.sav <- dim(post$z)[1]  # Number of saved iterations
+nsite <- win.data$nsite   # Number of sites
+nyear <- win.data$nyear   # Number of years
 
-psi.pred <- array(dim=c(nsite, n.sav))
-Z.est <- array(dim=c(nsite, n.sav))
-year = 2
+# Choose a specific year for analysis
+year <- 2
 
+# Initialize arrays
+psi.pred <- array(dim = c(nsite, n.sav))
+Z.est <- array(dim = c(nsite, n.sav))
 
+# Initialize AUC and lists to store FPR and TPR values for each iteration
 AUC <- rep(NA, n.sav)
-fpr <- array(dim=c(n.sav, nsite + 1))
-tpr <- array(dim=c(n.sav, nsite + 1))
-for(i in 1:n.sav){
-  psi.vals <- post$muZ[i, , 2]
-  z.vals <- post$z[i, , 2]
+fpr_list <- vector("list", n.sav)
+tpr_list <- vector("list", n.sav)
+
+# Loop through each iteration
+for (i in 1:n.sav) {
+  psi.vals <- post$muZ[i, , year]
+  z.vals <- post$z[i, , year]
+  
+  # Prediction and performance
   pred <- prediction(psi.vals, factor(z.vals, levels = c("0", "1")))
-  perf <- performance(pred, "auc")
-  AUC[i] <- perf@y.values[[1]]
-  perf <- performance(pred, "tpr","fpr")
-  fpr[i, ] <- perf@x.values[[1]]
-  tpr[i, ] <- perf@y.values[[1]]
+  perf_auc <- performance(pred, "auc")
+  AUC[i] <- perf_auc@y.values[[1]]
+  
+  perf_roc <- performance(pred, "tpr", "fpr")
+  fpr_list[[i]] <- perf_roc@x.values[[1]]
+  tpr_list[[i]] <- perf_roc@y.values[[1]]
 }
 
+# Processing FPR and TPR values for plotting or analysis (if needed)
+# Example: Averaging FPR and TPR values across all iterations
+# (you can modify this part according to your specific analysis or plotting requirements)
+avg_fpr <- sapply(fpr_list, function(x) mean(x, na.rm = TRUE))
+avg_tpr <- sapply(tpr_list, function(x) mean(x, na.rm = TRUE))
 
-fprm <- melt(fpr, varnames=c("iter", "site"))
-tprm <- melt(tpr, varnames = c("iter", "site"))
-ROC1 <- data.frame(fpr = fprm$value,
-                   tpr = tprm$value,
-                   iter = rep(fprm$iter, 2))
-
-
-p3 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
-  geom_line(alpha=0.05, color="blue") +
-  geom_abline(intercept = 0, slope = 1, linetype="dashed") +
+# Plotting the averaged ROC curve
+ggplot() +
+  geom_line(aes(x = avg_fpr, y = avg_tpr), color = "blue") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
   ylab("True positive rate") +
   xlab("False positive rate") + theme_bw()
 
+# Optional: Sampling for a cleaner plot
 ROC2 <- ROC1[sample(nrow(ROC1), size = 1000), ]
-ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
-  geom_line(alpha=1, color="red") +
-  geom_abline(intercept = 0, slope = 1, linetype="dashed") +
+ggplot(ROC2, aes(x = fpr, y = tpr, group = iter)) +
+  geom_line(alpha = 1, color = "red") +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
   ylab("True positive rate") +
   xlab("False positive rate") + theme_bw()
 
+# Calculate average AUC
+avg_auc <- mean(AUC, na.rm = TRUE) #0.8732123 for harvest no INT 
 
-mean(AUC) # 0.8953197 for harvest no INT 
+mean(AUC) #0.8734311 for harvest interaction model 
 
 
-
-#AUC for harvest model with interaction 
-post <- out_cov_distnoINT$sims.list
+#AUC for harvest model WITH interaction 
+post <- out_harvest$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
 

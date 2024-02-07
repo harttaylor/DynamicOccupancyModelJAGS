@@ -1,12 +1,24 @@
 
 model{
   # Priors 
+  # Normal priors for delta coefficients when there is harvest[i, k] == 1
+  delta.phi[1] ~ dnorm(0, 0.01)
+  delta.gamma[1] ~ dnorm(0, 0.01)
+
+  # Expect near constant values for delta coefficients when there is no harvest[i, k] == 2
+  delta.phi[2] ~ dnorm(0, 100)  # Very small variance
+  delta.gamma[2] ~ dnorm(0, 100)  # Very small variance
+
   # Psi 
   for(i in 1:nbeta.psi){
     beta.psi[i] ~ dnorm(0, 0.01)
   }
   
   # Phi: create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest
+  for(k in 1:2){
+    alpha.phi[k] ~ dnorm(0, 0.01)
+	}
+  
   for(i in 1:nbeta.phi){
     for(k in 1:2){
       beta.phi[i, k] ~ dnorm(0, 0.01)
@@ -14,6 +26,10 @@ model{
   }
   
   # Gamma: create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest 
+  for(k in 1:2){
+    alpha.gamma[k] ~ dnorm(0, 0.01)
+	}
+  
   for(i in 1:nbeta.gamma){
     for(k in 1:2){
       beta.gamma[i, k] ~ dnorm(0, 0.01)
@@ -33,8 +49,8 @@ model{
     
     for(k in 2:nyear){
 	  # The harvest[i] indexes which column of betas to use (1 or 2) 
-      logit(phi[i, k - 1]) <- inprod(beta.phi[, harvest[i,k]], x.phi.harvest[i, k, ])
-      logit(gamma[i, k - 1]) <- inprod(beta.gamma[, harvest[i,k]], x.gamma.harvest[i, k, ])
+      logit(phi[i, k - 1]) <- alpha.phi[harvest[i, k]] + delta.phi[harvest[i, k]]*harvest_age[i, k] + inprod(beta.phi[, harvest[i,k]], x.phi.harvest[i, k, ])
+      logit(gamma[i, k - 1]) <- alpha.gamma[harvest[i, k]] + delta.gamma[harvest[i, k]]*harvest_age[i, k] + inprod(beta.gamma[, harvest[i,k]], x.gamma.harvest[i, k, ])
       
       muZ[i, k] <- z[i, k - 1]*phi[i, k - 1] + (1 - z[i, k - 1])*gamma[i, k - 1] 
       z[i, k] ~ dbern(muZ[i, k])
