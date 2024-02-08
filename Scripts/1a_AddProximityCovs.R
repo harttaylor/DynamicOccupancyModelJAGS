@@ -25,10 +25,10 @@ names(scaled_covariates) <- covariate_columns_to_scale
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
 # Add log distances 
-yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 0.001)
-yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 0.001)
-yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 0.001)
-yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 0.001)
+yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
 log(0.001)
 # try with quadratic distances 
 yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
@@ -43,7 +43,7 @@ years <- unique(yearly_covariates$YEAR)
 
 
 # Make an array for distance variables 
-num_covariates <- 8
+num_covariates <- 4
 
 # Initialize the array with NA values
 yearly_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -57,7 +57,7 @@ for (i in 1:length(sites)) {
       covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
                                       "NEAR.DIST.unimproved.road", 
                                       "NEAR.DIST.pipeline",
-                                      "NEAR.DIST.harvest", "seis.2", "road.2", "pipe.2", "harv.2")]
+                                      "NEAR.DIST.harvest")]
       yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } else {
       # Print for diagnostic purposes
