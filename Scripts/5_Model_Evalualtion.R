@@ -1,8 +1,13 @@
+# Read in model output results 
+
 harvest_interaction <- readRDS("Results/harvest_interaction.rds")
+out_harv <- readRDS("Results/harvest_nointeraction.rds")
+out_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
+out_edge_RE <- readRDS("Results/EDGE_RE_model12000.rds")
 
-save(win.data, inits, params, out_cov_edge, file = "Results/Model Eval/out_cov_edge_files.Rdata")
+save(win.data, inits, params, out_cov_edge, file = "Results/Model Eval/out_edge24000.Rdata")
 
-
+# Load required packages 
 library(jagsUI)
 library(ggplot2)
 library(ROCR)
@@ -10,7 +15,7 @@ library(reshape2)
 
 
 # AUC for distance to edge model with no random year effect 
-post <- out_cov_edge$sims.list
+post <- out_edge$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
 
@@ -56,15 +61,24 @@ ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
   xlab("False positive rate") + theme_bw()
 ggsave("Results/Model Eval/AUC_EDGE.png")
 
-mean(AUC) # 0.8893745
+mean(AUC) # 0.8905614
 
-
-
+# Only a very small change in AUC when comparing the distance to edge random effect of year vs no random effect of year models (Adding the random effect 
+# imrpoves AUC score by 0.014). DIC for Edge_RE model=9884.689, DIC for Edge model= 9875.707, so DIC scores say the no RE model is better 
+# easier to interpret results using the model without the random effect for year. Possible explanations:
+# 1. Limited Variation Across Years: If the impact of the year on colonization and persistence probabilities is relatively uniform across the years studied, 
+# the random effect for year may not capture much additional variation.
+# 2. Model Complexity: Adding a random effect increases the complexity of the model. If the true underlying process is not that complex (i.e., the year effect is not a significant factor), the simpler 
+# model without the random year effect might be more robust and easier to interpret. In such cases, Occam's razor applies: the simplest explanation (or model) is often preferable. Practical Significance 
+# vs. Statistical Significance: A small increase in AUC, while statistically significant, may not be practically significant. The added complexity of including a random effect might not justify 
+# the minimal improvement in model performance
+# 3. Influence of Other Covariates: The effect of year might be confounded or overshadowed by other covariates in your model. If other variables have a stronger
+# influence on colonization and persistence probabilities, the year's effect might be relatively minor.
 
 
 
 # AUC for distance to edge model with the random year effect 
-post <- out_cov_edge_RE$sims.list
+post <- out_cov_RE$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
 
@@ -110,13 +124,12 @@ ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
   xlab("False positive rate") + theme_bw()
 ggsave("Results/Model Eval/AUC_EDGE_RE.png")
 
-mean(AUC) # 0.904973 for out_cov_edge_RE at 12000 iterations and 0.9041178 at 18000 iterations 
-
+mean(AUC) # 0.9053925 for out_cov_RE at 12000 iterations 
 
 
 
 #AUC for harvest model no interaction 
-post <- out_harvest_interaction$sims.list
+post <- out_harv$sims.list
 n.sav <- dim(post$z)[1]  # Number of saved iterations
 nsite <- win.data$nsite   # Number of sites
 nyear <- win.data$nyear   # Number of years
@@ -170,58 +183,24 @@ ggplot(ROC2, aes(x = fpr, y = tpr, group = iter)) +
   xlab("False positive rate") + theme_bw()
 
 # Calculate average AUC
-avg_auc <- mean(AUC, na.rm = TRUE) #0.8732123 for harvest no INT 
+avg_auc <- mean(AUC, na.rm = TRUE) #0.8737484 for harvest no INT 
 
 mean(AUC) #0.8734311 for harvest interaction model 
 
-
-#AUC for harvest model WITH interaction 
-post <- out_harvest$sims.list
-n.sav <- dim(post$z)[1] 
-nsite <- win.data$nsite
-
-psi.pred <- array(dim=c(nsite, n.sav))
-Z.est <- array(dim=c(nsite, n.sav))
-year = 2
+# So the AUC for the interaction vs. no interaction model are basicall ythe same. DIC for interaction model is quite a bit better (9577.506) vs. the no interaction harvets model 
+# is 9616.455. 
 
 
-AUC <- rep(NA, n.sav)
-fpr <- array(dim=c(n.sav, nsite + 1))
-tpr <- array(dim=c(n.sav, nsite + 1))
-for(i in 1:n.sav){
-  psi.vals <- post$muZ[i, , 2]
-  z.vals <- post$z[i, , 2]
-  pred <- prediction(psi.vals, factor(z.vals, levels = c("0", "1")))
-  perf <- performance(pred, "auc")
-  AUC[i] <- perf@y.values[[1]]
-  perf <- performance(pred, "tpr","fpr")
-  fpr[i, ] <- perf@x.values[[1]]
-  tpr[i, ] <- perf@y.values[[1]]
-}
 
 
-fprm <- melt(fpr, varnames=c("iter", "site"))
-tprm <- melt(tpr, varnames = c("iter", "site"))
-ROC1 <- data.frame(fpr = fprm$value,
-                   tpr = tprm$value,
-                   iter = rep(fprm$iter, 2))
 
 
-p3 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
-  geom_line(alpha=0.05, color="blue") +
-  geom_abline(intercept = 0, slope = 1, linetype="dashed") +
-  ylab("True positive rate") +
-  xlab("False positive rate") + theme_bw()
-
-ROC2 <- ROC1[sample(nrow(ROC1), size = 1000), ]
-ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
-  geom_line(alpha=1, color="red") +
-  geom_abline(intercept = 0, slope = 1, linetype="dashed") +
-  ylab("True positive rate") +
-  xlab("False positive rate") + theme_bw()
 
 
-mean(AUC) # 0.8953197 for distnoINT
+
+
+
+
 
 
 # Model validation using loo (Leave-one-out cross validation)

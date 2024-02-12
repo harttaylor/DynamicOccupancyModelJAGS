@@ -10,57 +10,77 @@ load("Data/allCLcovs24Jan2024.Rdata")
 #length(which(is.na(dets_array)))#1042
 
 # Get harvest related covariates to test the harvest*age interaction 
-yearly_covariates <- read.csv("UnscaledCovariatesJan31.csv")
+yearly_covariates <- read.csv("Data/UnscaledCovariatesJan31.csv")
 
 # Select relevant covariates along with site names (SS column) and year and prepare for harvest covs array 
 harvest_covariates <- yearly_covariates[c("SS", "YEAR",
-                                          "NEAR.DIST.harvest", "MEANAGE.565.harvest")]
+                                          "NEAR.DIST.harvest")]
+#, "MEANAGE.565.harvest"
 harvest_covariates$NEAR.DIST.harvest <- harvest_covariates$NEAR.DIST.harvest / max(harvest_covariates$NEAR.DIST.harvest)
-harvest_covariates$MEANAGE.565.harvest <- harvest_covariates$MEANAGE.565.harvest / max(harvest_covariates$MEANAGE.565.harvest)
-harvest_covariates$harvest_interaction <- (harvest_covariates$NEAR.DIST.harvest)*(harvest_covariates$MEANAGE.565.harvest)
+#harvest_covariates$MEANAGE.565.harvest <- harvest_covariates$MEANAGE.565.harvest / max(harvest_covariates$MEANAGE.565.harvest)
+#harvest_covariates$harvest_interaction <- (harvest_covariates$NEAR.DIST.harvest)*(harvest_covariates$MEANAGE.565.harvest)
 
-# Yearly covariates (human footprint and treatment)as a matrix (format for jags model) 
-# Extract unique sites and years
+# Get unique sites and years
 sites <- unique(harvest_covariates$SS)
 years <- unique(harvest_covariates$YEAR)
 
+# Initialize a 3-dimensional array
+# The third dimension is 1 because we only have one covariate (harvest distance)
+harvest_distances_array <- array(NA, dim = c(length(sites), length(years), 1))
 
-# Make an array for distance variables 
-num_covariates <- 3
+# Assign names to dimensions for clarity
+dimnames(harvest_distances_array) <- list(Site = sites, Year = years, Covariate = "Harvest Distance")
 
-# Initialize the array with NA values
-harvest_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
-
+# Fill the array with harvest distances for each site-year combination
 for (i in 1:length(sites)) {
   for (j in 1:length(years)) {
-    covs_rows <- harvest_covariates[harvest_covariates$SS == sites[i] & harvest_covariates$YEAR == years[j], ]
+    # Extract the corresponding row from harvest_covariates
+    covariate_row <- harvest_covariates[harvest_covariates$SS == sites[i] & harvest_covariates$YEAR == years[j], "NEAR.DIST.harvest"]
     
-    if (nrow(covs_rows) > 0) {
-      first_row <- covs_rows[1, ]
-      covariate_data <- first_row[, c("NEAR.DIST.harvest", "MEANAGE.565.harvest",
-                                      "harvest_interaction")]
-      harvest_covariates_array[i, j, ] <- as.numeric(covariate_data)
+    # Check if there is exactly one row for each site-year combination
+    if (length(covariate_row) == 1) {
+      harvest_distances_array[i, j, 1] <- covariate_row
     }
   }
 }
 
+
+# Select relevant covariates along with site names (SS column) and year and prepare the harvest age matrix 
+harvest_covariates <- yearly_covariates[c("SS", "YEAR",
+                                          "MEANAGE.565.harvest")]
+harvest_covariates$MEANAGE.565.harvest <- harvest_covariates$MEANAGE.565.harvest / max(harvest_covariates$MEANAGE.565.harvest)
+
+# Reshape from long to wide format
+harvest_age_matrix <- reshape(harvest_covariates, 
+                              idvar = "SS", 
+                              timevar = "YEAR", 
+                              direction = "wide")
+
+# Extracting only the harvest age values and dropping the site names from the row names
+harvest_age_matrix <- data.matrix(harvest_age_matrix[, -1])
+
+# Rename columns to just be the years (optional)
+colnames(harvest_age_matrix) <- sub("MEANAGE.565.harvest.", "", colnames(harvest_age_matrix))
+
+
+
 # Make an array for no-interaction harvest model   
-num_covariates <- 2
+#num_covariates <- 2
 
 # Initialize the array with NA values
-nointerac_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
+#nointerac_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
 
-for (i in 1:length(sites)) {
-  for (j in 1:length(years)) {
-    covs_rows <- harvest_covariates[harvest_covariates$SS == sites[i] & harvest_covariates$YEAR == years[j], ]
+#for (i in 1:length(sites)) {
+#  for (j in 1:length(years)) {
+#    covs_rows <- harvest_covariates[harvest_covariates$SS == sites[i] & harvest_covariates$YEAR == years[j], ]
     
-    if (nrow(covs_rows) > 0) {
-      first_row <- covs_rows[1, ]
-      covariate_data <- first_row[, c("NEAR.DIST.harvest", "MEANAGE.565.harvest")]
-      nointerac_covariates_array[i, j, ] <- as.numeric(covariate_data)
-    } 
-  }
-}
+#    if (nrow(covs_rows) > 0) {
+#      first_row <- covs_rows[1, ]
+#      covariate_data <- first_row[, c("NEAR.DIST.harvest", "MEANAGE.565.harvest")]
+#      nointerac_covariates_array[i, j, ] <- as.numeric(covariate_data)
+#    } 
+#  }
+#}
 
 # Set up some arrays to run the model 
 # Add na.rm = TRUE to the inits function (otherwise most of the intial values will be NA)
@@ -90,33 +110,37 @@ x.psi <- cbind(rep(1, nrow(first_year_covariates)), first_year_covariates)
 
 
 # Add covariates on gamma and phi
+# Create x.phi.harvest and x.gamma.harvest arrays for just distance to harvest 
+# For harvest covariates 
+# Or instead of abova, don't add an intercept, using yearly random effect as intercept instead 
+x.phi.harvest <- array(NA, dim = c(dim(harvest_distances_array)[1], dim(harvest_distances_array)[2], dim(harvest_distances_array)[3]))
+x.gamma.harvest <- array(NA, dim = c(dim(harvest_distances_array)[1], dim(harvest_distances_array)[2], dim(harvest_distances_array)[3]))
+for(i in 1:dim(harvest_distances_array)[2]){
+  # Directly use all covariates without adding an intercept column
+  x.phi.harvest[, i, ] <- harvest_distances_array[, i, ]
+  x.gamma.harvest[, i, ] <- harvest_distances_array[, i, ]
+}
+
+
 
 # Create x.phi.harvest and x.gamma.harvest arrays from prepared harvest covariate arrays 
 # For harvest covariates 
-x.phi.harvest <- array(NA, dim = c(dim(harvest_covariates_array)[1], dim(harvest_covariates_array)[2], dim(harvest_covariates_array)[3] + 1))
-for(i in 1:dim(harvest_covariates_array)[2]){
-  t <- cbind(rep(1, dim(harvest_covariates_array)[1]), harvest_covariates_array[, i, ])
-  x.phi.harvest[, i, ] <- t
-}
+#x.phi.harvest <- array(NA, dim = c(dim(harvest_covariates_array)[1], dim(harvest_covariates_array)[2], dim(harvest_covariates_array)[3] + 1))
+#for(i in 1:dim(harvest_covariates_array)[2]){
+#  t <- cbind(rep(1, dim(harvest_covariates_array)[1]), harvest_covariates_array[, i, ])
+#  x.phi.harvest[, i, ] <- t
+#}
 
-x.gamma.harvest <- x.phi.harvest
+#x.gamma.harvest <- x.phi.harvest
 
 # for no interaction 
-x.phi.harvest <- array(NA, dim = c(dim(nointerac_covariates_array)[1], dim(nointerac_covariates_array)[2], dim(nointerac_covariates_array)[3] + 1))
-for(i in 1:dim(nointerac_covariates_array)[2]){
-  t <- cbind(rep(1, dim(nointerac_covariates_array)[1]), nointerac_covariates_array[, i, ])
-  x.phi.harvest[, i, ] <- t
-}
+#x.phi.harvest <- array(NA, dim = c(dim(nointerac_covariates_array)[1], dim(nointerac_covariates_array)[2], dim(nointerac_covariates_array)[3] + 1))
+#for(i in 1:dim(nointerac_covariates_array)[2]){
+#  t <- cbind(rep(1, dim(nointerac_covariates_array)[1]), nointerac_covariates_array[, i, ])
+#  x.phi.harvest[, i, ] <- t
+#}
 
-x.gamma.harvest <- x.phi.harvest
-# Or instead of abova, don't add an intercept, using yearly random effect as intercept instead 
-x.phi.harvest.nointercept <- array(NA, dim = c(dim(harvest_covariates_array)[1], dim(harvest_covariates_array)[2], dim(harvest_covariates_array)[3]))
-x.gamma.harvest.nointercept <- array(NA, dim = c(dim(harvest_covariates_array)[1], dim(harvest_covariates_array)[2], dim(harvest_covariates_array)[3]))
-for(i in 1:dim(harvest_covariates_array)[2]){
-  # Directly use all covariates without adding an intercept column
-  x.phi.harvest.nointercept[, i, ] <- harvest_covariates_array[, i, ]
-  x.gamma.harvest.nointercept[, i, ] <- harvest_covariates_array[, i, ]
-}
+#x.gamma.harvest <- x.phi.harvest
 
 
 # Prepare harvest vs no harvest matrix so the model knows which betas to use 
@@ -158,32 +182,35 @@ for (i in 1:dim(x.p)[1]) {
 }
 
 
-# Run model for harvest with the interaction effect and no random year effects 
+# Run model for harvest with the interaction effect and no random year effects and tell model that when there is no harvest for a site x year 
+# combination that harvest age wont have variability (priors are set to 0 variability when there is no harvest(2's))
+#alpha is intercept now and delta is coefficient for the age which priors vary depending on whether harvest is 1 or 2 at site 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
+params <- c("beta.psi", "alpha.phi", "delta.phi", "beta.phi", "alpha.gamma", "delta.gamma", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
 
 
 # MCMC settings
-ni <- 30000
+ni <- 24000
 nt <- 1
-nb <- 15000
+nb <- 12000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi.harvest = x.phi.harvest, 
-                 nbeta.phi = dim(x.phi.harvest)[3], x.gamma.harvest = x.gamma.harvest, nbeta.gamma = dim(x.gamma.harvest)[3], x.p = x.p, nbeta.p = dim(x.p)[4], harvest = harvest)
+                 nbeta.phi = dim(x.phi.harvest)[3], x.gamma.harvest = x.gamma.harvest, nbeta.gamma = dim(x.gamma.harvest)[3], x.p = x.p, nbeta.p = dim(x.p)[4], 
+                 harvest = harvest, harvest_age = harvest_age_matrix)
 
 
 system.time({
-  harvest_X <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  out_harv <- jags(data = win.data, inits = inits, parameters.to.save = params, 
                        model.file = "Harvest_Model.txt", n.chains = nc, 
                        n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(harvest_X)
+print(out_harv)
 
 
-saveRDS(harvest_X, file = "harvest_X_results30000Feb1.rds")
+saveRDS(out_harv, "Results/harvest_nointeraction_24000.rds")
 
 
 

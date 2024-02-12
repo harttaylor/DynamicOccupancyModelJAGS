@@ -96,9 +96,9 @@ params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi
 
 
 # MCMC settings
-ni <- 12000
+ni <- 100
 nt <- 1
-nb <- 6000
+nb <- 50
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
@@ -106,29 +106,30 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_cov_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  out_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
                             model.file = "DistancetoEdgeModel.txt", n.chains = nc, 
                             n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_cov_edge)
+print(out_cov_edge3)
 
 
 
 saveRDS(out_cov_edge, file = "Results/EDGE_resultsFeb3.rds")
 
+out_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
 
-
+print(out_edge)
 # Run distance to edge model WITH the random year effect 
 
 params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "alpha.phi", "alpha.gamma", "psi", "phi", "gamma", "N", "z", "muZ")
 
 
 # MCMC settings
-ni <- 18000
+ni <- 12000
 nt <- 1
-nb <- 9000
+nb <- 6000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi.nointercept, 
@@ -136,18 +137,18 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_cov_edge_RE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  out_cov_RE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
                        model.file = "DistancetoEdge_RE.txt", n.chains = nc, 
                        n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_cov_edge_RE)
+print(out_cov_RE)
 
+save
 
-
-saveRDS(out_cov_edge_RE, file = "EDGE_RE_model_resultsJan31.rds")
-
+saveRDS(out_cov_RE, "Results/EDGE_RE_model12000.rds")
+out_edge_RE <- readRDS("Results/EDGE_RE_model_resultsJan31.rds")
 
 
 # define a mappign from JAGS parameter names to more descriptive labels 

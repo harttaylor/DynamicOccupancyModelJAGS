@@ -54,125 +54,75 @@ ggplot(data = data.frame(years, mean_gamma_per_year), aes(x = years, y = mean_ga
   #ggtitle("Mean Yearly Colonization Probability Over 24 Years") +
   theme_classic() 
 
+ggsave("Results/YearlyGamma.png")
 
-##---- Plot phi and gamma yearly on the same graph----
 
+# Plot phi and gamma on the same graph
 # Extract the phi matrix from your model output
 phi_matrix <- out_cov_edge$mean$phi[, 1:24]
-
-# Calculate the mean phi for each year across all sites
-mean_phi_per_year <- apply(phi_matrix, 2, mean)
+phi_lower <- out_cov_edge$q2.5$phi[, 1:24]
+phi_upper <- out_cov_edge$q97.5$phi[, 1:24]
+mean_phi <- apply(phi_matrix, 2, mean)
 
 # Extract the gamma matrix from your model output
 gamma_matrix <- out_cov_edge$mean$gamma[, 1:24]
-
-# Calculate the mean gamma for each year across all sites
-mean_gamma_per_year <- apply(gamma_matrix, 2, mean)
-
-# Years
-years <- 1:24  # Adjust if your study years are labeled differently
-
-# Create a data frame for phi and gamma
-data_df <- data.frame(years, mean_phi_per_year, mean_gamma_per_year, mean)
-
-# Create the combined plot
-combined_plot <- ggplot(data = data_df, aes(x = years)) +
-  geom_line(aes(y = mean_phi_per_year, color = "Persistence"), size = 1) +
-  geom_line(aes(y = mean_gamma_per_year, color = "Colonization"), size = 1) +
-  xlab("Year") +
-  ylab("Mean Probability") +
-  scale_y_continuous(n.breaks = 10) + 
-  scale_color_manual(values = c("Persistence" = "blue", "Colonization" = "red")) +
-  theme_classic() +
-  labs(color = "Parameter")
-
-# Save the combined plot
-ggsave("Results/CombinedPhiGamma.png", combined_plot, width = 10, height = 5)
-
-# Now do yearly estimates of z, occupancy probability 
-# Extract the gamma matrix from your model output
-occu_matrix <- out_cov_edge$mean$z[, 1:25]  # Adjust the indices if necessary
-print(dim(out_cov_edge$mean$z))
-
-# Calculate the mean gamma for each year across all sites
-mean_gamma_per_year <- apply(occu_matrix, 2, mean)
-
-# Years
-years <- 1:25 
-
-ggplot(data = data.frame(years, mean_gamma_per_year), aes(x = years, y = mean_gamma_per_year)) +
-  geom_line() +
-  xlab("Year") +
-  ylab("Mean Yearly Occupancy Probability (Psi)") +
-  #ggtitle("Mean Yearly Colonization Probability Over 25 Years") +
-  theme_classic() 
-
-
-
-
-# Assuming you have extracted the z matrix similarly
-z_matrix <- out_cov_dist12001$mean$z[, 1:25]
-z_lower <- out_cov_dist12001$q2.5$z[, 1:25]
-z_upper <- out_cov_dist12001$q97.5$z[, 1:25]
-mean_z_per_year <- apply(z_matrix, 2, mean)
-
-# Extract the phi matrix from your model output
-phi_matrix <- out_cov_dist12001$mean$phi[, 1:24]
-phi_lower <- out_cov_dist12001$q2.5$phi[, 1:24]
-phi_upper <- out_cov_dist12001$q97.5$phi[, 1:24]
-mean_phi_per_year <- apply(phi_matrix, 2, mean)
-
-# Extract the gamma matrix from your model output
-gamma_matrix <- out_cov_dist12001$mean$gamma[, 1:24]
-gamma_lower <- out_cov_dist12001$q2.5$gamma[, 1:24]
-gamma_upper <- out_cov_dist12001$q97.5$gamma[, 1:24]
-mean_gamma_per_year <- apply(gamma_matrix, 2, mean)
+gamma_lower <- out_cov_edge$q2.5$gamma[, 1:24]
+gamma_upper <- out_cov_edge$q97.5$gamma[, 1:24]
+mean_gamma <- apply(gamma_matrix, 2, mean)
 
 # Calculate yearly averages for the lower and upper CI bounds
 mean_phi_lower <- apply(phi_lower, 2, mean)
 mean_phi_upper <- apply(phi_upper, 2, mean)
 mean_gamma_lower <- apply(gamma_lower, 2, mean)
 mean_gamma_upper <- apply(gamma_upper, 2, mean)
-mean_z_lower <- apply(z_lower, 2, mean)
-mean_z_upper <- apply(z_upper, 2, mean)
+
+# Years vector covering 1 to 25
+years <- 1:24
+actual_years <- 1994 + (years - 1)
+
+# Create a combined data frame for plotting
+data_df <- data.frame(
+  years = actual_years,
+  mean_phi, mean_phi_lower, mean_phi_upper,
+  mean_gamma, mean_gamma_lower, mean_gamma_upper
+)
 
 # Adjust the lengths of the mean CI vectors
-mean_phi_lower <- c(NA, mean_phi_lower)  # Prepend NA
-mean_phi_upper <- c(NA, mean_phi_upper)  # Prepend NA
-mean_gamma_lower <- c(NA, mean_gamma_lower)  # Prepend NA
-mean_gamma_upper <- c(NA, mean_gamma_upper)  # Prepend NA
-mean_phi <- c(NA, mean_phi_per_year)
-mean_gamma <- c(NA, mean_gamma_per_year)
-# Years vector covering 1 to 25
-years <- 1:25
+# only need to do this if you are plotting occu and col/persist on same graph to standardize the years 
+#mean_phi_lower <- c(NA, mean_phi_lower)  # Prepend NA
+#mean_phi_upper <- c(NA, mean_phi_upper)  # Prepend NA
+#mean_gamma_lower <- c(NA, mean_gamma_lower)  # Prepend NA
+#mean_gamma_upper <- c(NA, mean_gamma_upper)  # Prepend NA
+#mean_phi <- c(NA, mean_phi_per_year)
+#mean_gamma <- c(NA, mean_gamma_per_year)
 
-# Create a data frame for plotting
-data_df <- data.frame(years, mean_phi, mean_phi_lower, mean_phi_upper, 
-                      mean_gamma, mean_gamma_lower, mean_gamma_upper)
 
-library(viridis)
-# Create the combined plot with adjusted colors and alpha levels
-combined_plot <- ggplot(data = data_df, aes(x = years)) +
-  # Plot the widest CIs first as the background
-  geom_ribbon(aes(ymin = mean_z_lower, ymax = mean_z_upper), fill = "grey80", alpha = 0.3) +
-  geom_ribbon(aes(ymin = mean_phi_lower, ymax = mean_phi_upper), fill = "grey70", alpha = 0.3) +
-  geom_ribbon(aes(ymin = mean_gamma_lower, ymax = mean_gamma_upper), fill = "grey60", alpha = 0.3) +
+
+ggplot(data_df, aes(x = years)) +
+  # Colonization Probability (phi) with ribbon
+  geom_ribbon(aes(ymin = mean_phi_lower, ymax = mean_phi_upper, fill = "Persistence"), alpha = 0.2) +
+  geom_line(aes(y = mean_phi, color = "Persistence")) +
   
-  # Now plot the lines, with more prominent colors
-  geom_line(aes(y = mean_phi, color = "Persistence"), size = 1.2) +
-  geom_line(aes(y = mean_gamma, color = "Colonization"), size = 1.2) +
-  geom_line(aes(y = mean_z_per_year, color = "Occupancy"), size = 1.2) +
+  # Extinction Probability (gamma) with ribbon
+  geom_ribbon(aes(ymin = mean_gamma_lower, ymax = mean_gamma_upper, fill = "Colonization"), alpha = 0.2) +
+  geom_line(aes(y = mean_gamma, color = "Colonization")) +
   
-  scale_color_viridis_d(option = "D", begin = 0.3, end = 0.7) +
-  xlab("Year") +
-  ylab("Mean Probability") +
+  # Labels and theme
+  labs(x = "Year", y = "Probability",
+       fill = "Probability Type", color = "Probability Type") +
+  scale_fill_manual(values = c("Persistence" = "purple", "Colonization" = "blue")) +
+  scale_color_manual(values = c("Persistence" = "purple", "Colonization" = "blue")) +
+  scale_x_continuous(breaks = seq(1994, 2018, 4), labels = seq(1994, 2018, 4)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.1), labels = seq(0, 1, 0.1)) + 
   theme_classic() +
-  labs(color = "Parameter") +
-  # Adding a guide for the fills, if you want to include it in the legend
-  guides(fill = guide_legend(title = "95% CI"))
+  theme(
+    legend.title = element_blank(), # Removes the legend title
+    legend.position = c(0.9, 0.6),
+    text = element_text(size = 14), # Increases the font size for all text elements
+    axis.text.y = element_text(size = 12) # Customizes y-axis text
+  )
 
-# Print the plot
-print(combined_plot)
+ggsave("Results/colonization_extinction_trends.png", width = 12, height = 6)
 
 
 # Create a plot for occupancy with the y-axis scaled from 0 to 1
@@ -193,28 +143,18 @@ data_df <- data.frame(years = actual_years, mean_z_per_year, mean_z_lower, mean_
 
 occupancy_plot <- ggplot(data = data_df, aes(x = years)) +
   geom_ribbon(aes(ymin = mean_z_lower, ymax = mean_z_upper), fill = "orange", alpha = 0.2) +
-  geom_line(aes(y = mean_z_per_year), color = "orange", size = 1.2) +
+  geom_line(aes(y = mean_z_per_year), color = "dark orange", size = 1) +
   scale_x_continuous(breaks = seq(1993, 2018, 5), labels = seq(1993, 2018, 5)) +
   #expand_limits(y = 0:1) +
   labs(x = "Year", y = "Mean Occupancy Probability") +
-  theme_classic()
+  theme_classic() +
+  theme(
+    text = element_text(size = 14), # Increases the font size for all text elements
+    axis.text.y = element_text(size = 12) # Customizes y-axis text
+  )
 print(occupancy_plot)
+ggsave("Results/occupancy.png")
 
-
-# Create a plot for colonization and persistence with the y-axis scaled from 0 to 1
-col_pers_plot <- ggplot(data = data_df, aes(x = years)) +
-  geom_ribbon(aes(ymin = mean_phi_lower, ymax = mean_phi_upper), fill = "blue", alpha = 0.2) +
-  geom_line(aes(y = mean_phi, color = "Persistence"), size = 1.2) +
-  geom_ribbon(aes(ymin = mean_gamma_lower, ymax = mean_gamma_upper), fill = "purple", alpha = 0.2) +
-  geom_line(aes(y = mean_gamma, color = "Colonization"), size = 1.2) +
-  scale_color_manual(values = c("Persistence" = "blue", "Colonization" = "purple")) +
-  expand_limits(y = 0:1) +
-  labs(x = "Year", y = "Mean Probability", color = "Parameter") +
-  theme_classic()
-
-# Print the plots
-print(occupancy_plot)
-print(col_pers_plot)
 
 # Make a plot for the number of sites occupied each year 
 mean_N_per_year <- out_cov_edge$mean$N
@@ -228,11 +168,15 @@ actual_years <- 1993 + (years - 1)
 data_df <- data.frame(years = actual_years, mean_N_per_year, N_lower, N_upper)
 
 occupancy_plot <- ggplot(data = data_df, aes(x = years)) +
-  geom_ribbon(aes(ymin = N_lower, ymax = N_upper), fill = "blue", alpha = 0.2) +
-  geom_line(aes(y = mean_N_per_year), color = "blue", size = 1.2) +
+  geom_ribbon(aes(ymin = N_lower, ymax = N_upper), fill = "blue", alpha = 0.1) +
+  geom_line(aes(y = mean_N_per_year), color = "blue", size = 1) +
   scale_x_continuous(breaks = seq(1993, 2018, 5), labels = seq(1993, 2018, 5)) +
   labs(x = "Year", y = "Number of Occupied Sites") +
-  theme_classic()
+  theme_classic() +
+  theme(
+    text = element_text(size = 14), # Increases the font size for all text elements
+    axis.text.y = element_text(size = 12) # Customizes y-axis text
+  )
 
 print(occupancy_plot)
 ggsave("Results/NumberofOccupiedSites.png")
@@ -302,6 +246,33 @@ ggplot(data, aes(x = Parameter, y = Value, color = Type)) +
 
 # If you want to save the plot, uncomment the next line
 ggsave("Results/human_footprint_effects_plot.png", width = 10, height = 8)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -4,87 +4,9 @@ library(boot)
 library(ggplot2)
 library(dplyr)
 
+out_cov_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
+#out_edge_RE <- readRDS("Results/EDGE_RE_model12000.rds")
 
-# Simpler plots 
-
-beta.phi <- out_cov$mean$beta.phi
-lower.beta.phi <- out_cov$q2.5$beta.phi
-upper.beta.phi <- out_cov$q97.5$beta.phi
-
-x_phi <- win.data$x.phi[, 2, ] # this is for year 2 only but wont change the relationship because the beta is the same for all years 
-
-# This line calculates predicted values using all original covariates (x_phi) and the coefficients (beta.phi). 
-# The %*% operator performs matrix multiplication.
-
-pred1 <- x_phi %*% beta.phi
-
-
-x.road <- x_phi 
-
-# selects the 3 covariate in the list which is distance to road to allow values to vary, and all other covariates are held at their mean to 
-# isolate the effect of the oen of interest 
-# The loop iterates over certain columns of x.road (all except the third, which represents "distance to road") 
-# and replaces their values with the mean of those columns. This "holds constant" these covariates at their mean values.
-for(x in c(1,2,4:7)){
-  x.road[, x] <- mean(x_phi[, x])
-}
-
-pred2 <- x.road %*% beta.phi # This line calculates new predicted values using the adjusted covariates (x.road) and the coefficients (beta.phi). 
-
-plot(x.road[, 3], inv.logit(pred2))
-
-# Basic scatter plot of the original data points
-# png("plot_distance_to_road.png", width = 800, height = 600)
-plot(x.road[, 3], inv.logit(pred2), 
-     xlab = "Scaled Distance to Road (m)", ylab = "Probability of Persistence")
-
-# Add a loess smoothed trendline
-lines(smooth.spline(x.road[, 3], inv.logit(pred2)), col = "blue", lwd = 1)
-
-
-# Adjust x_phi to isolate the effect of "Distance to Seismic Line"
-# Holding all other covariates constant at their mean values
-x_seismic <- x_phi
-for(i in c(1, 3:7)){  # Adjust all columns except the second (Distance to Seismic Line)
-  x_seismic[, i] <- mean(x_phi[, i])
-}
-
-# Calculate new predictions
-pred_seismic <- x_seismic %*% beta.phi
-
-# Basic scatter plot of the original data points
-#png("plot_distance_to_seismic_line.png", width = 800, height = 600)
-plot(x_seismic[, 2], inv.logit(pred_seismic), 
-     xlab = "Scaled Distance to Seismic Line (m)", ylab = "Probability of Persistence")
-
-# Add a loess smoothed trendline
-lines(smooth.spline(x_seismic[, 2], inv.logit(pred_seismic)), col = "green", lwd = 1)
-
-
-
-# For harvest 
-x_harvest <- x_phi
-for(i in c(1:3, 5:7)){  # Adjust all columns except the fourth (Distance to Harvest)
-  x_harvest[, i] <- mean(x_phi[, i])
-}
-
-# Calculate new predictions
-pred_harvest <- x_harvest %*% beta.phi
-
-# Basic scatter plot of the original data points
-# png("plot_distance_to_harvest.png", width = 800, height = 600)
-plot(x_harvest[, 4], inv.logit(pred_harvest), 
-     xlab = "Scaled Distance to Harvest (m)", ylab = "Probability of Persistence")
-
-# Add a loess smoothed trendline
-lines(smooth.spline(x_harvest[, 4], inv.logit(pred_harvest)), col = "red", lwd = 1)
-
-
-
-
-
-
-# Nicer plots 
 # Psi 
 # Stand Age 
 intercept_psi <- out_cov_edge$mean$beta.psi[1]

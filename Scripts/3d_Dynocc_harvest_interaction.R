@@ -186,3 +186,6 @@ system.time({
                                   n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 print(out_harvest_interaction)
+
+saveRDS(out_harvest_interaction, "Results/harvest_interaction.rds")
+read
