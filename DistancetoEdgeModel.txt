@@ -1,4 +1,5 @@
 model{
+
   # Priors 
   # Psi 
   for(i in 1:nbeta.psi){
@@ -10,16 +11,16 @@ model{
     beta.phi[i] ~ dnorm(0, 0.01)
   }
   
-# Gamma 
+  # Gamma 
   for(i in 1:nbeta.gamma){ 
     beta.gamma[i] ~ dnorm(0, 0.01)
   }
 
   # P 
-   for(i in 1:nbeta.p){
-     beta.p[i] ~ dnorm(0, 0.01)  # Detection  
+  for(i in 1:nbeta.p){
+    beta.p[i] ~ dnorm(0, 0.01)  # Detection 
   }
-  
+
   # Ecological sub-model 
   for(i in 1:nsite){
     logit(psi[i]) <- inprod(beta.psi, x.psi[i, ])
@@ -29,7 +30,7 @@ model{
       logit(phi[i, k - 1]) <- inprod(beta.phi, x.phi[i, k, ])
       logit(gamma[i, k - 1]) <- inprod(beta.gamma, x.gamma[i, k, ])
       
-      muZ[i, k] <- z[i, k - 1]*phi[i, k - 1] + (1 - z[i, k - 1])*gamma[i, k - 1] 
+      muZ[i, k] <- z[i, k - 1] * phi[i, k - 1] + (1 - z[i, k - 1]) * gamma[i, k - 1] 
       z[i, k] ~ dbern(muZ[i, k])
     }
   }
@@ -37,15 +38,16 @@ model{
   # Detection sub-model
   for(i in 1:nsite){
     for(k in 1:nyear){
-     for(j in 1:J[i, k]){
-       logit(p[i, k, j]) <- inprod(beta.p, x.p[i, k, j, ])
-       muy[i, k, j]  <- z[i, k]*p[i, k, j]
-       y[i, k, j] ~ dbern(muy[i, k, j])
-     }
+      for(j in 1:J[i, k]){
+        logit(p[i, k, j]) <- inprod(beta.p, x.p[i, k, j, ])
+        muy[i, k, j] <- z[i, k] * p[i, k, j]
+        y[i, k, j] ~ dbern(muy[i, k, j])
+      }
     }
   }  
- # Derived variable
- for(k in 1:nyear) {
-   N[k] <- sum(z[,k]) # no. sites occupied for each year
+
+  # Derived variable
+  for(k in 1:nyear) {
+    N[k] <- sum(z[,k]) # no. sites occupied for each year
   }
 }
