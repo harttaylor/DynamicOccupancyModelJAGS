@@ -139,3 +139,4 @@ plot <- ggplot(data, aes(x=Parameter, y=Mean, color=HarvestStatus)) +
   theme(legend.position = c(0.5, 0.9), legend.justification = c(1, 1))
 
 print(plot)
+ggsave("Results/HarvestModelCredibleIntervals.png")
