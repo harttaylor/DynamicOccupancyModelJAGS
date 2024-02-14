@@ -113,14 +113,6 @@ for(i in 1:dim(interaction_array)[2]){
 
 #x.gamma.harvest <- x.phi.harvest
 
-# for no interaction 
-#x.phi.harvest <- array(NA, dim = c(dim(nointerac_covariates_array)[1], dim(nointerac_covariates_array)[2], dim(nointerac_covariates_array)[3] + 1))
-#for(i in 1:dim(nointerac_covariates_array)[2]){
-#  t <- cbind(rep(1, dim(nointerac_covariates_array)[1]), nointerac_covariates_array[, i, ])
-#  x.phi.harvest[, i, ] <- t
-#}
-
-#x.gamma.harvest <- x.phi.harvest
 
 
 # Prepare harvest vs no harvest matrix so the model knows which betas to use 

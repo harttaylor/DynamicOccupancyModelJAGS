@@ -1,4 +1,3 @@
-
 # Set up working environment 
 setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModelJAGS")
 library(jagsUI)
@@ -7,9 +6,7 @@ library(jagsUI)
 load("Data/dets_array.RData")
 y <- dets_array
 
-# Get the covariate arrays 
 load("Data/allCLcovs24Jan2024.Rdata")
-
 #length(which(is.na(dets_array)))#1042
 
 # Set up some arrays to run the model 
@@ -41,38 +38,23 @@ x.psi <- cbind(rep(1, nrow(first_year_covariates)), first_year_covariates)
 
 # Add covariates on gamma and phi
 
-# Create x.phi and x.gamma arrays
+# Create x.phi and x.gamma arrays for distance to edge covariates 
 x.phi <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3] + 1))
-x.gamma <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3] + 1))
 for(i in 1:dim(yearly_covariates_array)[2]){
+  t <- cbind(rep(1, dim(yearly_covariates_array)[1]), yearly_covariates_array[, i, ])
+  x.phi[, i, ] <- t
+}
+
+x.gamma <- x.phi
+
+# Run this if you are adding random year effect as intercept 
+x.phi.nointercept <- array(NA, dim = c(dim(nonharvest_covariates_array)[1], dim(nonharvest_covariates_array)[2], dim(nonharvest_covariates_array)[3]))
+x.gamma.nointercept <- array(NA, dim = c(dim(nonharvest_covariates_array)[1], dim(nonharvest_covariates_array)[2], dim(nonharvest_covariates_array)[3]))
+for(i in 1:dim(nonharvest_covariates_array)[2]){
   # Directly use all covariates without adding an intercept column
-  x.phi[, i, ] <- yearly_covariates_array[, i, ]
-  x.gamma[, i, ] <- yearly_covariates_array[, i, ]
+  x.phi.nointercept[, i, ] <- nonharvest_covariates_array[, i, ]
+  x.gamma.nointercept[, i, ] <- nonharvest_covariates_array[, i, ]
 }
-
-# Get the dimensions from yearly_covariates_array
-dim1 = dim(yearly_covariates_array)[1]
-dim2 = dim(yearly_covariates_array)[2]
-
-# Initialize x.phi and x.gamma arrays with the new dimensions
-x.phi <- array(NA, dim = c(dim1, dim2, 3))
-x.gamma <- array(NA, dim = c(dim1, dim2, 3))
-
-# Fill in the arrays
-for (i in 1:dim1) {
-  for (j in 1:dim2) {
-    x.phi[i, j, 1] <- 1  # Intercept
-    x.phi[i, j, 2] <- yearly_covariates_array[i, j, 4]  # 4th element
-    x.phi[i, j, 3] <- yearly_covariates_array[i, j, 5]  # 5th element
-    
-    x.gamma[i, j, 1] <- 1  # Intercept
-    x.gamma[i, j, 2] <- yearly_covariates_array[i, j, 4]  # 4th element
-    x.gamma[i, j, 3] <- yearly_covariates_array[i, j, 5]  # 5th element
-  }
-}
-
-
-
 
 
 
@@ -96,118 +78,66 @@ for (i in 1:dim(x.p)[1]) {
   }
 }
 
-# Create the site x year indicator matrix
-# indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
-ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
+# Run distance to edge model with no random year effect 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N")
-#params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "alpha.phi", "alpha.gamma", "psi", "phi", "gamma", "N", "z", "muZ")
-
-
-# MCMC settings
-ni <- 120
-nt <- 1
-nb <- 60
-nc <- 3
-
-win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind, 
-                 harvest = harvest)
-win.data <- list(
-  y = y,
-  nsite = dim(y)[1],
-  nyear = dim(y)[2],
-  nsurv = nsurv,
-  J = J,
-  x.psi = x.psi,
-  nbeta.psi = ncol(x.psi),
-  x.phi = x.phi,  # using the array with only the 5th element
-  nbeta.phi = 3,  # only one beta coefficient for phi
-  x.gamma = x.gamma,  # using the array with only the 5th element
-  nbeta.gamma = 3,  # only one beta coefficient for gamma
-  x.p = x.p,
-  nbeta.p = dim(x.p)[4],
-  harvest = harvest
-)
-
-system.time({
-  out_cov_harv <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                            model.file = "cl_model_cov_p2_ancova.txt", n.chains = nc, 
-                            n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
-}) 
-
-
-system.time({
-  out_cov_dist12001 <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                       model.file = "cl_model_notrt.txt", n.chains = nc, 
-                       n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
-}) 
-
-print(out_cov_dist12001)
-
-print(out_cov_dist12000)
-system.time({
-  out_cov_dist <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                  model.file = "cl_model_cov_p2_re.txt", n.chains = nc, 
-                  n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
-}) # with 12000 iterations took 26mins with z 
-
-print(out_cov_dist) 
-
-
-saveRDS(out_cov_dist, file = "model_resultsJan18.rds")
-save.image()
-
-# Model with harvestage*harvestdist interaction 
-win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, tr = tr, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
-
-system.time({
-  out_cov_dist_interaction30000 <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                          model.file = "cl_model_cov_p2_re.txt", n.chains = nc, 
-                          n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
-}) # took 83 mins 
-
-print(out_cov_dist_interaction30000)
-out_cov_dist_interaction3000$sims.list$lprob.y
-
-
-# Model with harvestage*harvestdist interaction but no treatment 
-# MCMC settings
 params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
 
+
+# MCMC settings
 ni <- 12000
 nt <- 1
 nb <- 6000
 nc <- 3
+
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
+                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
+
 
 system.time({
-  out_cov_interact_notrt <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                                        model.file = "cl_model_notrt.txt", n.chains = nc, 
-                                        n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
+  out_cov_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                       model.file = "DistancetoEdgeModel.txt", n.chains = nc, 
+                       n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
-print(out_cov_interact_notrt)
 
-# Model with just distance (no harvestage*harvestdist interaction and no treatment)
+print(out_cov_edge)
+
+
+
+saveRDS(out_cov_edge, file = "EDGE_resultsJan31.rds")
+
+
+
+# Run distance to edge model WITH the random year effect 
+
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "alpha.phi", "alpha.gamma", "psi", "phi", "gamma", "N", "z", "muZ")
+
+
 # MCMC settings
 ni <- 120
 nt <- 1
 nb <- 60
 nc <- 3
+
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
+                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
+
 
 system.time({
-  out_cov_interact_notrt <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                                 model.file = "cl_model_notrt.txt", n.chains = nc, 
-                                 n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
+  out_cov_edge_RE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                          model.file = "DistancetoEdge_RE.txt", n.chains = nc, 
+                          n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
-print(out_cov_interact_notrt)
+
+print(out_cov_edge_RE)
+
+
+
+saveRDS(out_cov_dist, file = "model_resultsJan18.rds")
+
+
 
 # define a mappign from JAGS parameter names to more descriptive labels 
 param_descriptions <- c("beta.psi[1]" = "Beta.Psi.Intercept", 

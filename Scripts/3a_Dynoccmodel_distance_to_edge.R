@@ -58,16 +58,6 @@ for(i in 1:dim(yearly_covariates_array)[2]){
 }
 
 
-# Create x.phi and x.gamma arrays for LOG distance to edge covariates 
-#log.x.phi <- array(NA, dim = c(dim(log_dist_array)[1], dim(log_dist_array)[2], dim(log_dist_array)[3] + 1))
-#for(i in 1:dim(log_dist_array)[2]){
- # t <- cbind(rep(1, dim(log_dist_array)[1]), log_dist_array[, i, ])
-  #log.x.phi[, i, ] <- t
-#}
-
-#log.x.gamma <- log.x.phi
-
-
 # Add covariates on p
 # Adding an intercept
 ncovariates_with_intercept <- dim(detection_covariates_array)[4] + 1
@@ -92,13 +82,13 @@ for (i in 1:dim(x.p)[1]) {
 # Run distance to edge model with no random year effect 
 # But with a log effect 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "log_lik")
 
 
 # MCMC settings
-ni <- 100
+ni <- 10000
 nt <- 1
-nb <- 50
+nb <- 5000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
@@ -106,30 +96,31 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  out_quad_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
                             model.file = "DistancetoEdgeModel.txt", n.chains = nc, 
                             n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_cov_edge3)
+print(out_quad_edge)
 
+saveRDS(out_quad_edge, file = "Results/QUADEDGE_resultsFeb12.rds")
 
-
-saveRDS(out_cov_edge, file = "Results/EDGE_resultsFeb3.rds")
+saveRDS(out_log_edge, file = "Results/LOGEDGE_resultsFeb12.rds")
 
 out_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
 
-print(out_edge)
+
+
 # Run distance to edge model WITH the random year effect 
 
 params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "alpha.phi", "alpha.gamma", "psi", "phi", "gamma", "N", "z", "muZ")
 
 
 # MCMC settings
-ni <- 12000
+ni <- 120
 nt <- 1
-nb <- 6000
+nb <- 60
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi.nointercept, 
@@ -159,19 +150,13 @@ param_descriptions <- c("beta.psi[1]" = "Beta.Psi.Intercept",
                         "beta.phi[1]" = "Beta.Phi.Intercept",
                         "beta.phi[2]" = "Beta.Phi.Dist.Seismis.Line",
                         "beta.phi[3]" = "Beta.Phi.Dist.Road",
-                        "beta.phi[4]" = "Beta.Phi.Dist.Harvest",
-                        "beta.phi[5]" = "Beta.Phi.Dist.Pipeline",
-                        "beta.phi[6]" = "Beta.Phi.Harvest.Age",
-                        "beta.phi[7]" = "Beta.Phi.Treatment.Fragment",
-                        "beta.phi[8]" = "Beta.Phi.Treatment.Riparian",
+                        "beta.phi[4]" = "Beta.Phi.Dist.Pipeline",
+                        "beta.phi[5]" = "Beta.Phi.Dist.Harvest",
                         "beta.gamma[1]" = "Beta.Gamma.Intercept",
                         "beta.gamma[2]" = "Beta.Gamma.Dist.Seis",
                         "beta.gamma[3]" = "Beta.Gamma.Dist.Road",
+                        "beta.gamma[4]" = "Beta.Gamma.Dist.Pipeline",
                         "beta.gamma[4]" = "Beta.Gamma.Dist.Harvest",
-                        "beta.gamma[5]" = "Beta.Gamma.Dist.Pipeline",
-                        "beta.gamma[6]" = "Beta.Gamma.Harvest.Age",
-                        "beta.gamma[7]" = "Beta.Gamma.Treatment.Fragment",
-                        "beta.gamma[8]" = "Beta.Gamma.Treatment.Riparian",
                         "beta.p[1]" = "Beta.P.Intercept", 
                         "beta.p[2]" = "Beta.P.Julian.Day", 
                         "beta.p[3]" = "Beta.P.TSSR")

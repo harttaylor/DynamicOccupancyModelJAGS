@@ -24,12 +24,12 @@ names(scaled_covariates) <- covariate_columns_to_scale
 
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
-# Add log distances 
+# Add log distances to test the log relationship 
 yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
 yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
 yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
 yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
-log(0.001)
+
 # try with quadratic distances 
 yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
 yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
@@ -43,7 +43,7 @@ years <- unique(yearly_covariates$YEAR)
 
 
 # Make an array for distance variables 
-num_covariates <- 4
+num_covariates <- 8
 
 # Initialize the array with NA values
 yearly_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -57,7 +57,7 @@ for (i in 1:length(sites)) {
       covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
                                       "NEAR.DIST.unimproved.road", 
                                       "NEAR.DIST.pipeline",
-                                      "NEAR.DIST.harvest")]
+                                      "NEAR.DIST.harvest", "seis.2", "road.2", "pipe.2", "harv.2")]
       yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } else {
       # Print for diagnostic purposes
@@ -76,30 +76,6 @@ distance_columns <- c("NEAR.DIST.conventional.seismic",
                       "NEAR.DIST.pipeline",
                       "NEAR.DIST.harvest")
 
-log_covariates <- as.data.frame(lapply(distance_columns, function(column_name) {
-  log(yearly_covariates[[column_name]] + 0.001)
-}))
-
-# Original column names for the log-transformed covariates
-names(log_covariates) <- paste("LOG", distance_columns, sep=".")
-
-# Combine the 'SS' and 'YEAR' columns with the log-transformed covariates
-yearly_covariates_log <- cbind(yearly_covariates[c("SS", "YEAR")], log_covariates)
-
-# Preparing the array for log-transformed distance variables
-log_dist_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
-
-for(i in 1:length(sites)) {
-  for(j in 1:length(years)) {
-    covs_rows <- yearly_covariates_log[yearly_covariates_log$SS == sites[i] & yearly_covariates_log$YEAR == years[j], ]
-    
-    if(nrow(covs_rows) > 0) {
-      first_row <- covs_rows[1,]
-      log_covariates <- first_row[, paste("LOG", distance_columns, sep=".")]
-      log_dist_array[i, j, ] <- as.numeric(log_covariates)  # Assign the log-transformed covariates here
-    }
-  }
-}
 
 
 

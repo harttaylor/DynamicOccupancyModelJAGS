@@ -1,0 +1,51 @@
+
+model{
+  # Priors 
+  psi ~ dunif(0, 1)  # Initial occupancy probability
+  for(i in 1:(nyear - 1)){
+    phi[i] ~ dunif(0, 1)  # Survival (phi) 
+    gamma[i] ~ dunif(0, 1)  # Colonization (gamma) 
+	}
+  p ~ dunif(0, 1)  # Detection  
+  
+  # Ecological sub-model 
+  for(i in 1:nsite){
+    z[i, 1] ~ dbern(psi)
+    
+    for(k in 2:nyear){
+      muZ[i, k] <- z[i, k - 1]*phi[k - 1] + (1 - z[i, k - 1])*gamma[k - 1] 
+      z[i, k] ~ dbern(muZ[i, k])
+    }
+  }
+  
+  # Detection sub-model
+  for(i in 1:nsite){
+    for(k in 1:nyear){
+     for(j in 1:J[i, k]){
+       muy[i, k, j]  <- z[i, k]*p
+       y[i, k, nsurv[i, k, j]] ~ dbern(muy[i, k, j])
+     }
+    }
+  }
+  
+  # Derived parameters
+  psi1[1] <- psi
+  n.occ[1] <- sum(z[1:nsite, 1])
+  for (k in 2:nyear){
+    psi1[k] <- psi1[k - 1]*phi[k - 1] + (1 - psi1[k - 1])*gamma[k - 1]
+	n.occ[k] <- sum(z[1:nsite,k])
+	growthr[k] <- psi1[k]/psi1[k - 1]
+	turnover[k - 1] <- (1 - psi1[k - 1])*gamma[k - 1]/psi1[k]
+	}
+}
+
+
+
+
+
+
+
+
+
+
+

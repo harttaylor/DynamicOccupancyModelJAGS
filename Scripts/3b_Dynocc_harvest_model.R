@@ -64,23 +64,6 @@ colnames(harvest_age_matrix) <- sub("MEANAGE.565.harvest.", "", colnames(harvest
 
 
 
-# Make an array for no-interaction harvest model   
-#num_covariates <- 2
-
-# Initialize the array with NA values
-#nointerac_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
-
-#for (i in 1:length(sites)) {
-#  for (j in 1:length(years)) {
-#    covs_rows <- harvest_covariates[harvest_covariates$SS == sites[i] & harvest_covariates$YEAR == years[j], ]
-    
-#    if (nrow(covs_rows) > 0) {
-#      first_row <- covs_rows[1, ]
-#      covariate_data <- first_row[, c("NEAR.DIST.harvest", "MEANAGE.565.harvest")]
-#      nointerac_covariates_array[i, j, ] <- as.numeric(covariate_data)
-#    } 
-#  }
-#}
 
 # Set up some arrays to run the model 
 # Add na.rm = TRUE to the inits function (otherwise most of the intial values will be NA)
@@ -243,34 +226,6 @@ print(out_harvest)
 
 
 saveRDS(harvest_X, file = "harvest_X_resultsFeb1.rds")
-
-
-# define a mappign from JAGS parameter names to more descriptive labels 
-param_descriptions <- c("beta.psi[1]" = "Beta.Psi.Intercept", 
-                        "beta.psi[2]" = "Beta.Psi.Percent.Conifer", 
-                        "beta.psi[3]" = "Beta.Psi.Peco.Squared",
-                        "beta.psi[4]" = "Beta.Psi.Stand.Age",
-                        "beta.phi[1]" = "Beta.Phi.Intercept",
-                        "beta.phi[2]" = "Beta.Phi.Dist.Seismis.Line",
-                        "beta.phi[3]" = "Beta.Phi.Dist.Road",
-                        "beta.phi[4]" = "Beta.Phi.Dist.Harvest",
-                        "beta.phi[5]" = "Beta.Phi.Dist.Pipeline",
-                        "beta.phi[6]" = "Beta.Phi.Harvest.Age",
-                        "beta.phi[7]" = "Beta.Phi.Treatment.Fragment",
-                        "beta.phi[8]" = "Beta.Phi.Treatment.Riparian",
-                        "beta.gamma[1]" = "Beta.Gamma.Intercept",
-                        "beta.gamma[2]" = "Beta.Gamma.Dist.Seis",
-                        "beta.gamma[3]" = "Beta.Gamma.Dist.Road",
-                        "beta.gamma[4]" = "Beta.Gamma.Dist.Harvest",
-                        "beta.gamma[5]" = "Beta.Gamma.Dist.Pipeline",
-                        "beta.gamma[6]" = "Beta.Gamma.Harvest.Age",
-                        "beta.gamma[7]" = "Beta.Gamma.Treatment.Fragment",
-                        "beta.gamma[8]" = "Beta.Gamma.Treatment.Riparian",
-                        "beta.p[1]" = "Beta.P.Intercept", 
-                        "beta.p[2]" = "Beta.P.Julian.Day", 
-                        "beta.p[3]" = "Beta.P.TSSR")
-
-
 
 
 
