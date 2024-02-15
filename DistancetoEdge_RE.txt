@@ -49,10 +49,15 @@ model{
       logit(phi[i, k - 1]) <- alpha.phi[k] + inprod(beta.phi, x.phi[i, k, ])
       logit(gamma[i, k - 1]) <- alpha.gamma[k] + inprod(beta.gamma, x.gamma[i, k, ])
       
-      muZ[i, k] <- z[i, k - 1]*phi[i, k - 1] + (1 - z[i, k - 1])*gamma[i, k - 1] 
+       muZ[i, k] <- z[i, k - 1] * phi[i, k - 1] + (1 - z[i, k - 1]) * gamma[i, k - 1] 
       z[i, k] ~ dbern(muZ[i, k])
+  
+   # Calculate turnover (tau)
+      tau[i, k-1] <- gamma[i, k - 1] * (1 - z[i, k - 1]) /
+                   (gamma[i, k - 1] * (1 - z[i, k - 1]) + (1 - phi[i, k - 1]) * z[i, k - 1])
     }
   }
+  
   
  # Detection sub-model
   for(i in 1:nsite){

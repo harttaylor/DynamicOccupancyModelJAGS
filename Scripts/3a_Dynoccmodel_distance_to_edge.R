@@ -96,13 +96,13 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_quad_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                            model.file = "DistancetoEdgeModel.txt", n.chains = nc, 
+  out_tau_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                            model.file = "EdgeModel_TAU.txt", n.chains = nc, 
                             n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_quad_edge)
+print(out_tau_edge)
 
 saveRDS(out_quad_edge, file = "Results/QUADEDGE_resultsFeb12.rds")
 
