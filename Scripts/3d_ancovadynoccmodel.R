@@ -10,7 +10,7 @@ y <- dets_array
 
 # Get the covariate arrays 
 #load("Data/allCLcovs24Jan2024.Rdata")
-load("harvestvsnoharvestcovariates29Jan2024.Rdata")
+load("Data/harvestvsnoharvestcovariates29Jan2024.Rdata")
 
 # Set up some arrays to run the model 
 # Add na.rm = TRUE to the inits function (otherwise most of the intial values will be NA)
