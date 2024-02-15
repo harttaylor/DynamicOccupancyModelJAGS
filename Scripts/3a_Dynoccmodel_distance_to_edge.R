@@ -33,11 +33,75 @@ J <- do.call(rbind, lapply(1:dim(y)[1], function(i){
 }))
 
 
+
 # Add covariates on psi 
 x.psi <- cbind(rep(1, nrow(first_year_covariates)), first_year_covariates) 
 
 
 # Add covariates on gamma and phi
+# Format distances to edges depending on what distance relationship you are testing 
+yearly_covariates <- read.csv("Data/UnscaledCovariatesJan31.csv") # These are the final covariates where when there is both pipe and road, pipe is set to 1 (1km away), and they only have 114 sites and year 2004 is removed
+
+# Select relevant covariates along with site names (SS column) and year
+distance_covariates <- yearly_covariates[c("SS", "YEAR", "NEAR.DIST.conventional.seismic", 
+                                           "NEAR.DIST.unimproved.road", 
+                                           "NEAR.DIST.pipeline",
+                                           "NEAR.DIST.harvest")]
+
+# Identify the columns to scale (exclude 'SS' and 'YEAR' columns)
+covariate_columns_to_scale <- names(distance_covariates)[!names(distance_covariates) %in% c("SS", "YEAR")]
+
+# Divide covariates by 1000 to 'scale' them 
+scaled_covariates <- as.data.frame(lapply(covariate_columns_to_scale, function(column_name) {
+  distance_covariates[[column_name]] / 1000
+}))
+
+# Retain original column names for the scaled covariates
+names(scaled_covariates) <- covariate_columns_to_scale
+
+# Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
+yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
+# Add log distances to test the log relationship 
+# yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+# yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
+# yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
+# yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
+
+# try with quadratic distances 
+# yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
+# yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
+# yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
+# yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
+
+
+# Make an array for distance variables 
+# Extract unique sites and years
+sites <- unique(yearly_covariates$SS)
+years <- unique(yearly_covariates$YEAR)
+
+# Change as needed when adding in the quadratic distances or log distances 
+num_covariates <- 4
+
+# Initialize the array with NA values
+yearly_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
+
+for (i in 1:length(sites)) {
+  for (j in 1:length(years)) {
+    covs_rows <- yearly_covariates[yearly_covariates$SS == sites[i] & yearly_covariates$YEAR == years[j], ]
+    
+    if (nrow(covs_rows) > 0) {
+      first_row <- covs_rows[1, ]
+      covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
+                                      "NEAR.DIST.unimproved.road", 
+                                      "NEAR.DIST.pipeline",
+                                      "NEAR.DIST.harvest")]
+      yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
+    } 
+  }
+}
+
+#"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
+#"seis.2", "road.2", "pipe.2", "harv.2"
 
 # Create x.phi and x.gamma arrays for distance to edge covariates 
 x.phi <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3] + 1))
@@ -49,13 +113,13 @@ for(i in 1:dim(yearly_covariates_array)[2]){
 x.gamma <- x.phi
 
 # Run this if you are adding random year effect as intercept 
-x.phi.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
-x.gamma.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
-for(i in 1:dim(yearly_covariates_array)[2]){
+# x.phi.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
+# x.gamma.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
+# for(i in 1:dim(yearly_covariates_array)[2]){
   # Directly use all covariates without adding an intercept column
-  x.phi.nointercept[, i, ] <- yearly_covariates_array[, i, ]
-  x.gamma.nointercept[, i, ] <- yearly_covariates_array[, i, ]
-}
+#  x.phi.nointercept[, i, ] <- yearly_covariates_array[, i, ]
+#  x.gamma.nointercept[, i, ] <- yearly_covariates_array[, i, ]
+#}
 
 
 # Add covariates on p
@@ -78,32 +142,36 @@ for (i in 1:dim(x.p)[1]) {
   }
 }
 
+# Create the site x year indicator matrix
+# indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
+ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 # Run distance to edge model with no random year effect 
 # But with a log effect 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "log_lik")
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "tau")
 
 
 # MCMC settings
-ni <- 10000
+ni <- 100
 nt <- 1
-nb <- 5000
+nb <- 50
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
+                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
 
 
 system.time({
-  out_tau_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                            model.file = "EdgeModel_TAU.txt", n.chains = nc, 
+  out_tau_edge_Llike <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                            model.file = "DistancetoEdge_logLikeli.txt", n.chains = nc, 
                             n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_tau_edge)
+print(out_tau_edge$model)
 
+print(summary(out_tau_edge$mean$tau))
 saveRDS(out_quad_edge, file = "Results/QUADEDGE_resultsFeb12.rds")
 
 saveRDS(out_log_edge, file = "Results/LOGEDGE_resultsFeb12.rds")

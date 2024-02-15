@@ -108,5 +108,44 @@ ggsave("Results/occupancy_plot.png", occupancy_plot, dpi = 300, width = 8, heigh
 
 
 
+# Plot turnover rates 
+# Assuming 'out_tau_edge$mean$tau' is your model output
+# Extract the mean turnover rates for each year
+mean_turnover <- c(out_tau_edge$mean$tau$V2['Mean'], 
+                   out_tau_edge$mean$tau$V3['Mean'], 
+                   out_tau_edge$mean$tau$V4['Mean'],
+                   out_tau_edge$mean$tau$V5['Mean'], 
+                   out_tau_edge$mean$tau$V6['Mean'], 
+                   out_tau_edge$mean$tau$V7['Mean'], 
+                   out_tau_edge$mean$tau$V8['Mean'],
+                   out_tau_edge$mean$tau$V9['Mean'], 
+                   out_tau_edge$mean$tau$V10['Mean'], 
+                   out_tau_edge$mean$tau$V11['Mean'], 
+                   out_tau_edge$mean$tau$V12['Mean'],
+                   out_tau_edge$mean$tau$V13['Mean'], 
+                   out_tau_edge$mean$tau$V14['Mean'], 
+                   out_tau_edge$mean$tau$V15['Mean'], 
+                   out_tau_edge$mean$tau$V16['Mean'],
+                   out_tau_edge$mean$tau$V17['Mean'], 
+                   out_tau_edge$mean$tau$V18['Mean'], 
+                   out_tau_edge$mean$tau$V19['Mean'], 
+                   out_tau_edge$mean$tau$V20['Mean'],
+                   out_tau_edge$mean$tau$V21['Mean'], 
+                   out_tau_edge$mean$tau$V22['Mean'], 
+                   out_tau_edge$mean$tau$V23['Mean'], 
+                   out_tau_edge$mean$tau$V24['Mean'],
+                   out_tau_edge$mean$tau$V25['Mean'])
+print(out_tau_edge$mean$tau[,1])
+# Create a data frame for plotting
+years <- 1:25  # Adjust if your study years are named differently
+turnover_data <- data.frame(Year = years, MeanTurnover = mean_turnover)
 
+# Plot
+ggplot(turnover_data, aes(x = Year, y = MeanTurnover)) +
+  geom_line() +
+  geom_point() +  # Optional: adds points to each year's mean turnover rate
+  labs(title = "Changes in Turnover Over 25 Years",
+       x = "Year",
+       y = "Mean Turnover") +
+  theme_minimal()
 

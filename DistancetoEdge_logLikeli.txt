@@ -75,10 +75,10 @@ for(k in 1:nyear) {
 
     # Sum of log likelihoods across all sites for year k
     score.year[k] <- sum(lprob.y[1:nsite, k])
-}
+    }
 
-# Total log likelihood (Deviance)
-l.score <- -2 * sum(score.year[1:nyear])
+    # Total log likelihood (Deviance)
+    l.score <- -2*sum(score.year[2:nyear])
 
   # Derived variable
   for(k in 1:nyear) {
