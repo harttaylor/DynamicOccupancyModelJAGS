@@ -103,3 +103,10 @@ print(occupancy_plot)
 # Save the plot at a high resolution
 ggsave("Results/occupancy_plot.png", occupancy_plot, dpi = 300, width = 8, height = 6)
 
+
+
+
+
+
+
+

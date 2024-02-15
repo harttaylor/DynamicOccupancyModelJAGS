@@ -67,7 +67,34 @@ for(i in 1:nsite) {
         }
     }
 }
+# Log likelihood calculation
+for(k in 1:nyear) {
+    for(i in 1:nsite) {
+        for(j in 1:J[i, k]) {
+            # Probability of observing y[i, k, j] given p[i, k, j]
+            prob1[i, k, j] <- pow(p[i, k, j], y[i, k, j]) * pow((1 - p[i, k, j]), (1 - y[i, k, j]))
+            
+            # Probability of not detecting species given site is occupied
+            prob2[i, k, j] <- 1 - p[i, k, j]
+        }
 
+        # Likelihood term if species is detected at least once at the site in year k
+        term1[i, k] <- ind[i, k] * muZ[i, k] * prod(prob1[i, k, 1:J[i, k]])
+        
+        # Likelihood term if species is never detected at the site in year k
+        term2[i, k] <- (1 - ind[i, k]) * ((1 - muZ[i, k]) + muZ[i, k] * prod(prob2[i, k, 1:J[i, k]]))
+        
+        # Log likelihood for site i in year k
+        y.prob[i, k] <- term1[i, k] + term2[i, k]
+        lprob.y[i, k] <- log(y.prob[i, k])
+    }
+
+    # Sum of log likelihoods across all sites for year k
+    score.year[k] <- sum(lprob.y[1:nsite, k])
+}
+
+# Total log likelihood (Deviance)
+l.score <- -2 * sum(score.year[1:nyear])
 
 # Derived variable for the number of sites occupied each year
 for(k in 1:nyear) {

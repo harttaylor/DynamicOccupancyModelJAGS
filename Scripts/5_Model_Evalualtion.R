@@ -129,7 +129,7 @@ mean(AUC) # 0.9053925 for out_cov_RE at 12000 iterations
 
 
 #AUC for harvest model no interaction 
-post <- out_harv$sims.list
+post <- out_harvRE$sims.list
 n.sav <- dim(post$z)[1]  # Number of saved iterations
 nsite <- win.data$nsite   # Number of sites
 nyear <- win.data$nyear   # Number of years
@@ -184,15 +184,18 @@ ggplot(ROC2, aes(x = fpr, y = tpr, group = iter)) +
 
 # Calculate average AUC
 avg_auc <- mean(AUC, na.rm = TRUE) #0.8737484 for harvest no INT 
+# 0.8887167 for harvest no INT, RE 
 
 mean(AUC) #0.8734311 for harvest interaction model 
+# 0.8887622 for harvest Interaction, with RE
 
-# So the AUC for the interaction vs. no interaction model are basicall ythe same. DIC for interaction model is quite a bit better (9577.506) vs. the no interaction harvets model 
-# is 9616.455. 
+# So the AUC for the interaction vs. no interaction model are basicall ythe same. DIC for interaction model is quite a bit better (9577.506) 
+# vs. the no interaction harvest model is 9616.455. 
 
 
 
-
+# For the Random effect of year models the DIC for interaction model is 9605.348 with 24000 iterations 
+# And the no interaction RE model is 9670.074 with 24000 iterations 
 
 
 

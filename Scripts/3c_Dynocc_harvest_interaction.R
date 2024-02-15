@@ -158,7 +158,7 @@ for (i in 1:dim(x.p)[1]) {
 # combination that harvest age wont have variability (priors are set to 0 variability when there is no harvest(2's))
 #alpha is intercept now and delta is coefficient for the age which priors vary depending on whether harvest is 1 or 2 at site 
 
-params <- c("beta.psi", "alpha.phi", "delta.phi", "beta.phi", "alpha.gamma", "delta.gamma", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
+params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "beta.p",  "alpha.phi", "alpha.gamma", "phi", "gamma", "psi", "N", "z", "muZ")
 
 
 # MCMC settings
@@ -173,11 +173,11 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_harvest_interaction <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                                  model.file = "Harvest_Model.txt", n.chains = nc, 
+  out_harv_interc_RE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                                  model.file = "HarvestModel_RE.txt", n.chains = nc, 
                                   n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
-print(out_harvest_interaction)
-
-saveRDS(out_harvest_interaction, "Results/harvest_interaction.rds")
+print(out_harv_interc_RE)
+print(out_harvRE)
+saveRDS(out_harv_interc_RE, "Results/harvest_interactionRE24000.rds")
 read
