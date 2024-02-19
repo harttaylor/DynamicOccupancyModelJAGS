@@ -179,26 +179,6 @@ for (i in 1:dim(x.p)[1]) {
     }
   }
 }
-# Adding an intercept
-ncovariates_with_intercept <- dim(detection_covariates_array)[4] + 1
-
-# Initialize x.p with dimensions: sites, years, maximum visits, covariates (including intercept)
-x.p <- array(NA, dim = c(nsite, nyear, nvisits, ncovariates_with_intercept))
-
-# Populate x.p
-for (i in 1:nsite) {
-  for (k in 1:nyear) {
-    for (j in 1:nvisits) {
-      if (!is.na(detection_covariates_array[i, k, j, 1])) {  # Check if the covariate data is not NA
-        x.p[i, k, j, 1] <- 1  # Intercept
-        x.p[i, k, j, 2:ncovariates_with_intercept] <- detection_covariates_array[i, k, j, ]
-      } else {
-        x.p[i, k, j, 1:ncovariates_with_intercept] <- NA
-      }
-    }
-  }
-}
-head(x.p)
 
 # Create the site x year indicator matrix
 # indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
@@ -207,7 +187,7 @@ ind = apply(y, c(1, 2), max, na.rm = TRUE)
 # Run distance to edge model with no random year effect 
 # But with a log effect 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "lprob.y")
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
 
 
 # MCMC settings
