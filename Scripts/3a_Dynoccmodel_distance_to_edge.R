@@ -7,8 +7,9 @@ library(jagsUI)
 load("Data/dets_array.RData")
 y <- dets_array
 
-load("Data/allCLcovs24Jan2024.Rdata")
+load("covariatearraysFeb16.Rdata")
 #length(which(is.na(dets_array)))#1042
+#length(which(is.na(detection_covariates_array)))
 
 # Set up some arrays to run the model 
 # Add na.rm = TRUE to the inits function (otherwise most of the intial values will be NA)
@@ -31,8 +32,6 @@ J <- do.call(rbind, lapply(1:dim(y)[1], function(i){
     length(which(!is.na(y[i, j, ])))
   })
 }))
-
-
 
 # Add covariates on psi 
 x.psi <- cbind(rep(1, nrow(first_year_covariates)), first_year_covariates) 
@@ -68,10 +67,10 @@ yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariat
 # yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
 
 # try with quadratic distances 
-# yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
-# yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
-# yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
-# yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
+yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
+yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
+yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
+yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
 
 
 # Make an array for distance variables 
@@ -80,7 +79,7 @@ sites <- unique(yearly_covariates$SS)
 years <- unique(yearly_covariates$YEAR)
 
 # Change as needed when adding in the quadratic distances or log distances 
-num_covariates <- 4
+num_covariates <- 8
 
 # Initialize the array with NA values
 yearly_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -94,7 +93,7 @@ for (i in 1:length(sites)) {
       covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
                                       "NEAR.DIST.unimproved.road", 
                                       "NEAR.DIST.pipeline",
-                                      "NEAR.DIST.harvest")]
+                                      "NEAR.DIST.harvest", "seis.2", "road.2", "pipe.2", "harv.2")]
       yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } 
   }
@@ -113,13 +112,13 @@ for(i in 1:dim(yearly_covariates_array)[2]){
 x.gamma <- x.phi
 
 # Run this if you are adding random year effect as intercept 
-# x.phi.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
-# x.gamma.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
-# for(i in 1:dim(yearly_covariates_array)[2]){
+x.phi <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
+x.gamma <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
+for(i in 1:dim(yearly_covariates_array)[2]){
   # Directly use all covariates without adding an intercept column
-#  x.phi.nointercept[, i, ] <- yearly_covariates_array[, i, ]
-#  x.gamma.nointercept[, i, ] <- yearly_covariates_array[, i, ]
-#}
+  x.phi[, i, ] <- yearly_covariates_array[, i, ]
+  x.gamma[, i, ] <- yearly_covariates_array[, i, ]
+}
 
 
 # Add covariates on p
@@ -144,33 +143,33 @@ for (i in 1:dim(x.p)[1]) {
 
 # Create the site x year indicator matrix
 # indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
-ind = apply(y, c(1, 2), max, na.rm = TRUE)
+#ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 # Run distance to edge model with no random year effect 
 # But with a log effect 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "tau")
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "alpha.gamma", "alpha.phi", "psi", "N", "z", "muZ", "tau")
 
 
 # MCMC settings
-ni <- 100
+ni <- 10000
 nt <- 1
-nb <- 50
+nb <- 5000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
+                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
 
 
 system.time({
-  out_tau_edge_Llike <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                            model.file = "DistancetoEdge_logLikeli.txt", n.chains = nc, 
+  REquad_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                            model.file = "DistancetoEdge_RE.txt", n.chains = nc, 
                             n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_tau_edge$model)
-
+print(REquad_edge)
+print(out_edge$sims.list)
 print(summary(out_tau_edge$mean$tau))
 saveRDS(out_quad_edge, file = "Results/QUADEDGE_resultsFeb12.rds")
 
@@ -180,34 +179,6 @@ out_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
 
 
 
-# Run distance to edge model WITH the random year effect 
-
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "alpha.phi", "alpha.gamma", "psi", "phi", "gamma", "N", "z", "muZ")
-
-
-# MCMC settings
-ni <- 120
-nt <- 1
-nb <- 60
-nc <- 3
-
-win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi.nointercept, 
-                 nbeta.phi = dim(x.phi.nointercept)[3], x.gamma = x.gamma.nointercept, nbeta.gamma = dim(x.gamma.nointercept)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
-
-
-system.time({
-  out_cov_RE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                       model.file = "DistancetoEdge_RE.txt", n.chains = nc, 
-                       n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
-}) 
-
-
-print(out_cov_RE)
-
-save
-
-saveRDS(out_cov_RE, "Results/EDGE_RE_model12000.rds")
-out_edge_RE <- readRDS("Results/EDGE_RE_model_resultsJan31.rds")
 
 
 # define a mappign from JAGS parameter names to more descriptive labels 
