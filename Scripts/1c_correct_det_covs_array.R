@@ -59,17 +59,6 @@ names(scaled_covariates) <- covariate_columns_to_scale
 
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
-# Add log distances to test the log relationship 
-# yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
-# yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
-# yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
-# yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
-
-# try with quadratic distances 
-# yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
-# yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
-# yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
-# yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
 
 
 # Make an array for distance variables 
@@ -98,8 +87,6 @@ for (i in 1:length(sites)) {
   }
 }
 
-#"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
-#"seis.2", "road.2", "pipe.2", "harv.2"
 
 # Create x.phi and x.gamma arrays for distance to edge covariates 
 x.phi <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3] + 1))
@@ -137,24 +124,23 @@ ncovariates <- 2  # Number of covariates
 # Initialize the 4D array with NAs
 detection_covariates_array <- array(NA, dim = c(nsite, nyear, nvisits, ncovariates))
 
-# Populate the array
 for (site in 1:nsite) {
   for (year in 1:nyear) {
-    # Subset data for the current site and year
-    site_year_data <- detcovsready[detcovsready$SS == unique_sites[site] & detcovsready$YYYY == unique_years[year], ]
-    
-    # Loop through the maximum number of visits
     for (visit in 1:nvisits) {
-      # Subset data for the specific visit
-      visit_data <- site_year_data[site_year_data$ROUND == visit, ]
-      
-      if (nrow(visit_data) == 1) {
-        # Assign values when there's exactly one row of data for the visit
-        detection_covariates_array[site, year, visit, 1] <- visit_data$jday
-        detection_covariates_array[site, year, visit, 2] <- visit_data$tssr
+      # Check if the detection matrix has NA for this site, year, and visit
+      if (is.na(y[site, year, visit])) {
+        # Assign NA to all covariates for this site, year, and visit
+        detection_covariates_array[site, year, visit, ] <- NA
       } else {
-        # Keep NAs if there are zero or multiple rows for the visit
-        detection_covariates_array[site, year, visit, 1:2] <- NA
+        # Your existing logic to populate covariates
+        site_year_data <- detcovsready[detcovsready$SS == unique_sites[site] & detcovsready$YYYY == unique_years[year], ]
+        visit_data <- site_year_data[site_year_data$ROUND == visit, ]
+        if (nrow(visit_data) == 1) {
+          detection_covariates_array[site, year, visit, 1] <- visit_data$jday
+          detection_covariates_array[site, year, visit, 2] <- visit_data$tssr
+        } else {
+          detection_covariates_array[site, year, visit, 1:2] <- NA
+        }
       }
     }
   }
@@ -180,12 +166,14 @@ for (i in 1:dim(x.p)[1]) {
   }
 }
 
+
+
+
+
 # Create the site x year indicator matrix
 # indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
-ind = apply(y, c(1, 2), max, na.rm = TRUE)
+#ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
-# Run distance to edge model with no random year effect 
-# But with a log effect 
 
 params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
 
@@ -197,14 +185,14 @@ nb <- 50
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
+                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
 
 
 system.time({
-  out_lik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                   model.file = "cl_model_cov_lik.txt", n.chains = nc, 
+  out_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                   model.file = "CorrectPModel.txt", n.chains = nc, 
                    n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_lik)
+print(out_edge)
