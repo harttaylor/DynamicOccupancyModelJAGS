@@ -39,14 +39,13 @@ model{
     }
   }
   
-  
-  # Detection sub-model
+# Detection sub-model
   for(i in 1:nsite){
     for(k in 1:nyear){
       for(j in 1:J[i, k]){
         logit(p[i, k, j]) <- inprod(beta.p, x.p[i, k, j, ])
         muy[i, k, j] <- z[i, k] * p[i, k, j]
-        y[i, k, j] ~ dbern(muy[i, k, j])
+        y[i, k, nsurv[i, k, j]] ~ dbern(muy[i, k, j])
       }
     }
   }  

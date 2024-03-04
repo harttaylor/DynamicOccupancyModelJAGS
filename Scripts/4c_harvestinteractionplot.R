@@ -1,9 +1,11 @@
 # HARVEST INTERACTION  
-
+# Set up working environment 
+setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModelJAGS")
+library(jagsUI)
 library(ggplot2)
 palette.colors(palette = "Tableau 10")
 
-harvest_interaction <- readRDS("Results/harvest_interaction.rds")
+harvest_interaction <- readRDS("Results/harvest_interactionRE24000.rds")
 out_harv <- readRDS("Results/harvest_nointeraction.rds")
 
 print(harvest_interaction)
@@ -12,10 +14,10 @@ print(out_harv)
 # First make separate plots for with (1) and without harvest (2) showing relationship with harvest age and distance 
 # Gamma 
 # Model coefficients from output
-intercept_with_harvest <- harvest_interaction$mean$alpha.gamma[1]
+intercept_with_harvest <- harvest_interaction$mean$alpha.gamma[2]
 slope_age_with_harvest <- harvest_interaction$mean$delta.gamma[1]
 slope_distance_with_harvest <- harvest_interaction$mean$beta.gamma[1,1]
-slope_interaction_with_harvest <- harvest_interaction$mean$beta.gamma[2,1]
+slope_interaction_with_harvest <- harvest_interaction$mean$beta.gamma[1,2]
 
 # Define a range for harvest distance
 distance_harvest_seq <- seq(0, 1, length.out = 10000)
@@ -64,7 +66,7 @@ ggplot(plot_data, aes(x = DistanceToHarvest, y = PredictedGamma, color = Harvest
 # Plotting WITHOUT harvest 
 intercept_no_harvest <- harvest_interaction$mean$alpha.gamma[2]
 slope_age_no_harvest <- harvest_interaction$mean$delta.gamma[2]
-slope_distance_no_harvest <- harvest_interaction$mean$beta.gamma[1,2] 
+slope_distance_no_harvest <- harvest_interaction$mean$beta.gamma[2,1] 
 slope_interaction_no_harvest <- harvest_interaction$mean$beta.gamma[2,2] 
 
 # Calculate predicted values for the no-harvest scenario
@@ -98,16 +100,16 @@ ggplot(combined_plot_data, aes(x = DistanceToHarvest, y = PredictedGamma, color 
   )
 
 # Save the plot
-ggsave("Results/GammaHarvestInteractionPlot.png", width = 10, height = 6)
+ggsave("Results/Feb21GammaHarvestInteractionPlot.png", width = 10, height = 6)
 
 
 
 # Phi
 # Model coefficients from output
-intercept_with_harvest <- harvest_interaction$mean$alpha.phi[1]
+intercept_with_harvest <- harvest_interaction$mean$alpha.phi[2]
 slope_age_with_harvest <- harvest_interaction$mean$delta.phi[1]
 slope_distance_with_harvest <- harvest_interaction$mean$beta.phi[1,1]
-slope_interaction_with_harvest <- harvest_interaction$mean$beta.phi[2,1]
+slope_interaction_with_harvest <- harvest_interaction$mean$beta.phi[1,2]
 
 # Define a range for harvest distance
 distance_harvest_seq <- seq(0, 1, length.out = 10000)
@@ -156,7 +158,7 @@ ggplot(plot_data, aes(x = DistanceToHarvest, y = PredictedGamma, color = Harvest
 # Plotting WITHOUT harvest 
 intercept_no_harvest <- harvest_interaction$mean$alpha.phi[2]
 slope_age_no_harvest <- harvest_interaction$mean$delta.phi[2]
-slope_distance_no_harvest <- harvest_interaction$mean$beta.phi[1,2] 
+slope_distance_no_harvest <- harvest_interaction$mean$beta.phi[2,1] 
 slope_interaction_no_harvest <- harvest_interaction$mean$beta.phi[2,2] 
 
 # Calculate predicted values for the no-harvest scenario
@@ -190,7 +192,7 @@ ggplot(combined_plot_data, aes(x = DistanceToHarvest, y = PredictedGamma, color 
   )
 
 # Save the plot
-ggsave("Results/PhiHarvestInteractionPlot.png", width = 10, height = 6)
+ggsave("Results/Feb21PhiHarvestInteractionPlot.png", width = 10, height = 6)
 
 # Coefficients from your model output for 'with harvest' scenario
 intercept_with_harvest <- -2.251  # Placeholder, use out_cov_harv2$beta.gamma[1,1] from your model output
@@ -252,6 +254,120 @@ print(gg)
 
 # Save the plot
 ggsave("HarvestAgeDistanceInteractionPlot.png", plot = gg, width = 8, height = 5, dpi = 300)
+
+
+
+
+# Make plot to show harvest age effects for only sites with harvest (unharvested sites removed) 
+
+# Phi
+# Model coefficients from output
+harvest_interaction <- readRDS("Results/HARVOUT_sites_w_out_harvest_removed.rds")
+
+intercept_with_harvest <- harvest_interaction$mean$beta.phi[1]
+slope_age_with_harvest <- harvest_interaction$mean$beta.phi[3]
+slope_distance_with_harvest <- harvest_interaction$mean$beta.phi[2]
+slope_interaction_with_harvest <- harvest_interaction$mean$beta.phi[4]
+
+# Define a range for harvest distance
+distance_harvest_seq <- seq(0, 1, length.out = 10000)
+
+
+# Example harvest ages (transformed) for visualization
+example_harvest_ages_transformed <- c(0.1, 0.3, 0.8)  # Transformed values
+example_harvest_ages_original <- example_harvest_ages_transformed * 30  # Original age values
+
+# Initialize an empty data frame for plotting
+plot_data <- data.frame()
+
+# Loop through each transformed harvest age and calculate predictions
+for (i in seq_along(example_harvest_ages_transformed)) {
+  harvest_age_transformed <- example_harvest_ages_transformed[i]
+  harvest_age_original <- example_harvest_ages_original[i]
+  
+  # Calculate predicted values (probabilities) using the model coefficients and logistic function
+  logit_gamma <- intercept_with_harvest +
+    slope_age_with_harvest * harvest_age_transformed +
+    slope_distance_with_harvest * distance_harvest_seq +
+    slope_interaction_with_harvest * harvest_age_transformed * distance_harvest_seq
+  predicted_gamma <- exp(logit_gamma) / (1 + exp(logit_gamma))
+  
+  # Combine data into a single data frame for plotting
+  plot_data <- rbind(plot_data, data.frame(
+    DistanceToHarvest = distance_harvest_seq,
+    PredictedGamma = predicted_gamma,
+    HarvestAgeLabel = as.factor(harvest_age_original)  # Use original age for labels
+  ))
+}
+
+color_palette <- c("3" = "#EDC948", "9" = "#F28E2B", "24" = "#E15759")
+# Plot
+ggplot(plot_data, aes(x = DistanceToHarvest, y = PredictedGamma, color = HarvestAgeLabel)) +
+  geom_line() +
+  scale_y_continuous("Probability of Persistence") +
+  scale_x_continuous("Distance to Harvest") +
+  scale_color_manual(values = color_palette) +
+  labs(color = "Harvest Age (Years)") +
+  theme_classic() +
+  theme(axis.title = element_text(color = "black")) 
+
+
+
+# Gamma 
+# Model coefficients from output
+intercept_with_harvest <- harvest_interaction$mean$beta.gamma[1]
+slope_age_with_harvest <- harvest_interaction$mean$beta.gamma[3]
+slope_distance_with_harvest <- harvest_interaction$mean$beta.gamma[2]
+slope_interaction_with_harvest <- harvest_interaction$mean$beta.gamma[4]
+
+# Define a range for harvest distance
+distance_harvest_seq <- seq(0, 1, length.out = 10000)
+
+
+# Example harvest ages (transformed) for visualization
+example_harvest_ages_transformed <- c(0.1, 0.3, 0.8)  # Transformed values
+example_harvest_ages_original <- example_harvest_ages_transformed * 30  # Original age values
+
+# Initialize an empty data frame for plotting
+plot_data <- data.frame()
+
+# Loop through each transformed harvest age and calculate predictions
+for (i in seq_along(example_harvest_ages_transformed)) {
+  harvest_age_transformed <- example_harvest_ages_transformed[i]
+  harvest_age_original <- example_harvest_ages_original[i]
+  
+  # Calculate predicted values (probabilities) using the model coefficients and logistic function
+  logit_gamma <- intercept_with_harvest +
+    slope_age_with_harvest * harvest_age_transformed +
+    slope_distance_with_harvest * distance_harvest_seq +
+    slope_interaction_with_harvest * harvest_age_transformed * distance_harvest_seq
+  predicted_gamma <- exp(logit_gamma) / (1 + exp(logit_gamma))
+  
+  # Combine data into a single data frame for plotting
+  plot_data <- rbind(plot_data, data.frame(
+    DistanceToHarvest = distance_harvest_seq,
+    PredictedGamma = predicted_gamma,
+    HarvestAgeLabel = as.factor(harvest_age_original)  # Use original age for labels
+  ))
+}
+
+color_palette <- c("3" = "#EDC948", "9" = "#F28E2B", "24" = "#E15759")
+# Plot
+ggplot(plot_data, aes(x = DistanceToHarvest, y = PredictedGamma, color = HarvestAgeLabel)) +
+  geom_line() +
+  scale_y_continuous("Probability of Colonization (Gamma)") +
+  scale_x_continuous("Distance to Harvest") +
+  scale_color_manual(values = color_palette) +
+  labs(color = "Harvest Age (Years)") +
+  theme_classic() +
+  theme(axis.title = element_text(color = "black")) 
+
+
+
+
+
+
+
 
 
 library(ggplot2)
