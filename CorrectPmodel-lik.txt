@@ -23,20 +23,22 @@ model{
 
   # Ecological sub-model 
   for(i in 1:nsite){
-    logit(psi[i]) <- inprod(beta.psi, x.psi[i, ])
-    z[i, 1] ~ dbern(psi[i])
+    lpsi[i] <- inprod(beta.psi, x.psi[i, ])
+	muZ[i, 1] <- exp(lpsi[i])/(1 + exp(lpsi[i]))
+    z[i, 1] ~ dbern(muZ[i, 1])
     
     for(k in 2:nyear){
       logit(phi[i, k - 1]) <- inprod(beta.phi, x.phi[i, k, ])
       logit(gamma[i, k - 1]) <- inprod(beta.gamma, x.gamma[i, k, ])
       
-       muZ[i, k] <- z[i, k - 1] * phi[i, k - 1] + (1 - z[i, k - 1]) * gamma[i, k - 1] 
+      muZ[i, k] <- z[i, k - 1] * phi[i, k - 1] + (1 - z[i, k - 1]) * gamma[i, k - 1] 
       z[i, k] ~ dbern(muZ[i, k])
   
    # Calculate turnover (tau)
-      tau[i, k] <- gamma[i, k - 1] * (1 - muZ[i, k - 1]) /
-                   (gamma[i, k - 1] * (1 - muZ[i, k - 1]) + (1 - phi[i, k - 1]) * muZ[i, k - 1])
+      tau[i, k] <- (gamma[i, k - 1] * (1 - muZ[i, k - 1]))/(gamma[i, k - 1] * (1 - muZ[i, k - 1]) + (1 - phi[i, k - 1]) * muZ[i, k - 1])
+      r.tau[i, k] <- 1/tau[i, k]
     }
+	hmean.turn[i] <- (nyear - 1)/sum(r.tau[i, 2:nyear])
   }
   
 # Detection sub-model
@@ -73,7 +75,7 @@ model{
   #Sum across likelihood scores across years and multiply by -2 (the likelihood score; AKA the Deviance)
   l.score <- -2*sum(score.year[2:nyear])
 
-  # Derived variable
+  # Derived variables
   for(k in 1:nyear) {
     N[k] <- sum(z[,k]) # no. sites occupied for each year
   }
