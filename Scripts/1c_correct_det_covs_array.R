@@ -3,10 +3,12 @@ setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModel
 library(jagsUI)
 
 # Set up some required arrays
-load("Data/dets_array.RData")
-y <- dets_array
-
+#load("Data/dets_array.RData") # dont think u need this anymore 
 load("covariatearraysFeb16.Rdata")
+detection_history <- readRDS("Data/detection_history_array.rds")
+y <- detection_history
+detection_covariates_array <- readRDS("Data/detection_covariates_arrayV2.rds")
+
 
 # Set up some arrays to run the model 
 # Add na.rm = TRUE to the inits function (otherwise most of the intial values will be NA)
@@ -166,16 +168,17 @@ for (i in 1:dim(x.p)[1]) {
   }
 }
 
+head(x.p[, 2, ,])
+head(y[, 2, ])
 
-
-
-
+head(x.p[12, , ,])
+head(y[12, , ])
 # Create the site x year indicator matrix
 # indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
-#ind = apply(y, c(1, 2), max, na.rm = TRUE)
+ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "lprob.y")
 
 
 # MCMC settings
@@ -185,7 +188,7 @@ nb <- 50
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
-                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4])
+                 nbeta.phi = dim(x.phi)[3], x.gamma = x.gamma, nbeta.gamma = dim(x.gamma)[3], x.p = x.p, nbeta.p = dim(x.p)[4], ind = ind)
 
 
 system.time({
