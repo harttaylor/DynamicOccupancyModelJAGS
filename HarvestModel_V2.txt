@@ -38,10 +38,12 @@ model{
   }
   
 
-  # Ecological sub-model 
+   # Ecological sub-model 
   for(i in 1:nsite){
-    logit(psi[i]) <- inprod(beta.psi, x.psi[i, ])
-    z[i, 1] ~ dbern(psi[i])
+    lpsi[i] <- inprod(beta.psi, x.psi[i, ])
+	muZ[i, 1] <- exp(lpsi[i])/(1 + exp(lpsi[i]))
+    z[i, 1] ~ dbern(muZ[i, 1])
+
     
     for(k in 2:nyear){
 	  # The harvest[i] indexes which column of betas to use (1 or 2) 

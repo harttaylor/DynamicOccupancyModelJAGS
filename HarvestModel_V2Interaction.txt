@@ -20,22 +20,22 @@ model{
   delta.phi.interaction[1] ~ dnorm(0, 0.01)
   delta.gamma.interaction[1] ~ dnorm(0, 0.01)
 
-  # Psi 
+  # Psi (initial occupancy probability)
   for(i in 1:nbeta.psi){
     beta.psi[i] ~ dnorm(0, 0.01)
   }
   
-  # Phi: create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest
+  # Phi (persistence): create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest
   for(k in 1:2){
     alpha.phi[k] ~ dnorm(0, 0.01)
 	}
   
-  # Gamma: create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest 
+  # Gamma (colonization): create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest 
   for(k in 1:2){
     alpha.gamma[k] ~ dnorm(0, 0.01)
 	}
    
-  # P 
+  # P (detection probability)
    for(i in 1:nbeta.p){
      beta.p[i] ~ dnorm(0, 0.01)  # Detection  
   }
@@ -49,8 +49,7 @@ model{
 
     
     for(k in 2:nyear){
-	  # The harvest[i] indexes which column of betas to use (1 or 2) 
-          # this is without a harvest intereaction effect 
+	  # The harvest[i] indexes which column of betas to use (1 or 2)
       logit(phi[i, k - 1]) <- alpha.phi[harvest[i, k]] + delta.phi[harvest[i, k]]*harvest_age[i, k] + beta.phi[harvest[i, k]]*harvest_distance[i, k]
           			        + delta.phi.interaction[1] * harvest_interaction[i, k] * step(harvest[i, k] - 1)
       logit(gamma[i, k - 1]) <- alpha.gamma[harvest[i, k]] + delta.gamma[harvest[i, k]]*harvest_age[i, k] + beta.gamma[harvest[i, k]]*harvest_distance[i, k]

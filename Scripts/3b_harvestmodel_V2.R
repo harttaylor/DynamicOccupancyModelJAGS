@@ -43,7 +43,7 @@ for (site in sites) {
 }
 
 
-# Select relevant covariates along with site names (SS column) and year and prepare the harvest age matrix 
+# Prepare harvest age matrix 
 harvest_covariates <- yearly_covariates[c("SS", "YEAR",
                                           "MEANAGE.565.harvest")]
 harvest_covariates$MEANAGE.565.harvest <- harvest_covariates$MEANAGE.565.harvest / max(harvest_covariates$MEANAGE.565.harvest)
@@ -60,6 +60,40 @@ harvest_age_matrix <- data.matrix(harvest_age_matrix[, -1])
 # Rename columns to just be the years (optional)
 colnames(harvest_age_matrix) <- sub("MEANAGE.565.harvest.", "", colnames(harvest_age_matrix))
 
+
+
+
+# Prepare harvest interaction matrix 
+harvest_covariates <- yearly_covariates[c("SS", "YEAR",
+                                          "NEAR.DIST.harvest", "MEANAGE.565.harvest")]
+
+harvest_covariates$NEAR.DIST.harvest <- harvest_covariates$NEAR.DIST.harvest / max(harvest_covariates$NEAR.DIST.harvest)
+harvest_covariates$MEANAGE.565.harvest <- harvest_covariates$MEANAGE.565.harvest / max(harvest_covariates$MEANAGE.565.harvest)
+harvest_covariates$harvest_interaction <- (harvest_covariates$NEAR.DIST.harvest)*(harvest_covariates$MEANAGE.565.harvest)
+
+# Get unique sites and years
+sites <- unique(harvest_covariates$SS)
+years <- unique(harvest_covariates$YEAR)
+
+# Initialize a 2-dimensional matrix for harvest distance 
+harvest_interaction_matrix <- matrix(NA, nrow = length(sites), ncol = length(years))
+
+# Assign row and column names to the matrix for clarity
+rownames(harvest_interaction_matrix) <- sites
+colnames(harvest_interaction_matrix) <- years
+
+# Fill the matrix with harvest distances for each site-year combination
+for (site in sites) {
+  for (year in years) {
+    # Extract the corresponding harvest distance value
+    covariate_value <- harvest_covariates$harvest_interaction[harvest_covariates$SS == site & harvest_covariates$YEAR == year]
+    
+    # Check if there is exactly one value for each site-year combination
+    if (length(covariate_value) == 1) {
+      harvest_interaction_matrix[site, as.character(year)] <- covariate_value
+    }
+  }
+}
 
 
 
@@ -135,9 +169,9 @@ ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 # Run model for harvest with the interaction effect and random year effects and tell model that when there is no harvest for a site x year 
 # combination that harvest age wont have variability (priors are set to 0 variability when there is no harvest(2's))
-#alpha is intercept now and delta is coefficient for the age which priors vary depending on whether harvest is 1 or 2 at site 
-
-params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "beta.p",  "alpha.phi", "alpha.gamma", "N", "z", "muZ")
+# alpha is intercept now and delta is coefficient for the age which priors vary depending on whether harvest is 1 or 2 at site 
+# No interaction 
+params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "beta.p",  "alpha.phi", "alpha.gamma", "l.score", "score.year", "N", "z", "muZ")
 
 
 # MCMC settings
@@ -147,20 +181,48 @@ nb <- 50
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.p = x.p, nbeta.p = dim(x.p)[4], 
-                 harvest = harvest, harvest_age = harvest_age_matrix, harvest_distance = harvest_distances_matrix)
+                 harvest = harvest, harvest_age = harvest_age_matrix, harvest_distance = harvest_distances_matrix, ind = ind)
 
 
 system.time({
-  out_harvRE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                     model.file = "HarvestModel_V2.txt", n.chains = nc, 
+  out_harvlik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                       model.file = "HarvestModel_V2.txt", n.chains = nc, 
+                       n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
+}) 
+
+
+print(out_harvlik)
+
+
+saveRDS(out_harvlik, "Results/Mar11harvest_lik_20000.rds")
+
+# With harvest age interaction 
+params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "delta.phi.interaction", "delta.gamma.interaction", "beta.p",  "alpha.phi", "alpha.gamma", "l.score", "score.year", "N", "z", "muZ")
+
+
+# MCMC settings
+ni <- 100
+nt <- 1
+nb <- 50
+nc <- 3
+
+win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.p = x.p, nbeta.p = dim(x.p)[4], 
+                 harvest = harvest, harvest_age = harvest_age_matrix, harvest_distance = harvest_distances_matrix, harvest_interaction = harvest_interaction_matrix, ind = ind)
+
+
+system.time({
+  out_harvXlik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                     model.file = "HarvestModel_V2Interaction.txt", n.chains = nc, 
                      n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_harvRE)
+print(out_harvXlik)
 
 
-saveRDS(out_harvRE, "Results/harvest_RE_24000.rds")
+saveRDS(out_harvXlik, "Results/Mar11harvest_Xlik_20000.rds")
+
+
 
 
 
