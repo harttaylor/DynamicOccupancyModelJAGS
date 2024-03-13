@@ -178,13 +178,13 @@ head(y[12, , ])
 ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "l.score", "hmean.turn")
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "l.score", "score.year", "y.prob")
 
 
 # MCMC settings
-ni <- 50
+ni <- 10000
 nt <- 1
-nb <- 20
+nb <- 5000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
@@ -199,3 +199,38 @@ system.time({
 
 
 print(out_edge)
+
+library(loo)
+lp <- out_edge$sims.list$score.year
+lp1 <- lp[, 2:dim(lp)[2]]
+waic(lp1)
+loo(lp1)
+
+lpy <- out_edge$sims.list$y.prob
+lpy1 <- lpy[, , 2:dim(lpy)[3]]
+
+str(lpy1)
+
+d <- matrix(NA, dim(lpy1)[2], dim(lpy1)[3])
+for(k in 1:dim(lpy1)[3]){
+  for(i in 1:dim(lpy1)[2]){
+    d[i, k] <- log(mean(lpy1[1:dim(lpy1)[1], i, k]))
+  }
+}
+
+d1 <- sum(colSums(d))
+
+p <- array(NA, dim = dim(lpy1))
+v <- matrix(NA, dim(lpy1)[2], dim(lpy1)[3])
+for(k in 1:dim(lpy1)[3]){
+  for(i in 1:dim(lpy1)[2]){
+    for(s in 1:dim(lpy1)[1]){
+      p[s, i, k] <- log(lpy1[s, i, k])
+    }
+    v[i, k] <- var(p[, i, k])
+  }
+}
+
+v1 <- sum(colSums(v))
+
+w <- -2*d1 + 2*v1
