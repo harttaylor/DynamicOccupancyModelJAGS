@@ -35,13 +35,8 @@ model{
       z[i, k] ~ dbern(muZ[i, k])
   
    # Calculate turnover (tau)
-<<<<<<< HEAD:CorrectPmodelMar12.txt
       tau[i, k] <- (gamma[i, k - 1] * (1 - muZ[i, k - 1]))/(gamma[i, k - 1] * (1 - muZ[i, k - 1]) + (1 - phi[i, k - 1]) * muZ[i, k - 1])
       r.tau[i, k] <- 1/tau[i, k]
-=======
-      #tau[i, k-1] <- gamma[i, k - 1] * (1 - z[i, k - 1]) /
-      #             (gamma[i, k - 1] * (1 - z[i, k - 1]) + (1 - phi[i, k - 1]) * z[i, k - 1])
->>>>>>> 1ca50c4e4f47a8622b8d5c3ca7323ee6fee04627:CorrectPmodel.txt
     }
 	hmean.turn[i] <- (nyear - 1)/sum(r.tau[i, 2:nyear])
   }
@@ -56,7 +51,6 @@ model{
       }
     }
   }  
-<<<<<<< HEAD:CorrectPmodelMar12.txt
 # Caluclate the model likelihood (note change in order of indexing
   for(k in 2:nyear){
     for(i in 1:nsite){
@@ -82,11 +76,6 @@ model{
   l.score <- -2*sum(score.year[2:nyear])
 
   # Derived variables
-=======
-
-  
-  # Derived variable
->>>>>>> 1ca50c4e4f47a8622b8d5c3ca7323ee6fee04627:CorrectPmodel.txt
   for(k in 1:nyear) {
     N[k] <- sum(z[,k]) # no. sites occupied for each year
   }
