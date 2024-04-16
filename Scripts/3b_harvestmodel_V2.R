@@ -123,7 +123,7 @@ J <- do.call(rbind, lapply(1:dim(y)[1], function(i){
 # Add covariates on psi 
 x.psi <- cbind(rep(1, nrow(first_year_covariates)), first_year_covariates) 
 
-
+sum(harvest == 1)
 
 # Prepare harvest vs no harvest matrix so the model knows which betas to use 
 # Get unique sites and years
@@ -171,13 +171,13 @@ ind = apply(y, c(1, 2), max, na.rm = TRUE)
 # combination that harvest age wont have variability (priors are set to 0 variability when there is no harvest(2's))
 # alpha is intercept now and delta is coefficient for the age which priors vary depending on whether harvest is 1 or 2 at site 
 # No interaction 
-params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "beta.p",  "alpha.phi", "alpha.gamma", "l.score", "score.year", "N", "z", "muZ")
+params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "beta.p",  "alpha.phi", "alpha.gamma", "y.prob", "score.year", "N", "z", "muZ")
 
 
 # MCMC settings
-ni <- 100
+ni <- 20000
 nt <- 1
-nb <- 50
+nb <- 10000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.p = x.p, nbeta.p = dim(x.p)[4], 
@@ -185,25 +185,26 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_harvlik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  smallout_harvlik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
                        model.file = "HarvestModel_V2.txt", n.chains = nc, 
                        n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_harvlik)
+print(smallout_harvlik)
 
 
-saveRDS(out_harvlik, "Results/Mar11harvest_lik_20000.rds")
+saveRDS(smallout_harvlik, "Results/Apr08harvest_lik_20000.rds")
 
 # With harvest age interaction 
-params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "delta.phi.interaction", "delta.gamma.interaction", "beta.p",  "alpha.phi", "alpha.gamma", "l.score", "score.year", "N", "z", "muZ")
+params <- c("beta.psi", "delta.phi", "beta.phi", "delta.gamma", "beta.gamma", "delta.phi.interaction", 
+            "delta.gamma.interaction", "beta.p",  "alpha.phi", "alpha.gamma", "score.year", "y.prob", "N", "z", "muZ")
 
 
 # MCMC settings
-ni <- 100
+ni <- 20000
 nt <- 1
-nb <- 50
+nb <- 10000
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.p = x.p, nbeta.p = dim(x.p)[4], 
@@ -211,48 +212,92 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_harvXlik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  mout_harvXlik <- jags(data = win.data, inits = inits, parameters.to.save = params, 
                      model.file = "HarvestModel_V2Interaction.txt", n.chains = nc, 
                      n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_harvXlik)
+print(mout_harvXlik)
 
 
-saveRDS(out_harvXlik, "Results/Mar11harvest_Xlik_20000.rds")
+saveRDS(tout_harvXlik, "Results/Apr08harvest_Xlik_20000.rds")
 
+sout_harvXlik <- readRDS("Results/Apr08harvest_Xlik_20000.rds")
 
-
-
-
-
-
-# Run model for harvest WITHOUT the interaction effect and no random year effects 
-
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ")
-
-
-# MCMC settings
-ni <- 100
-nt <- 1
-nb <- 50
-nc <- 3
-
-win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi.harvest = x.phi.harvest, 
-                 nbeta.phi = dim(x.phi.harvest)[3], x.gamma.harvest = x.gamma.harvest, nbeta.gamma = dim(x.gamma.harvest)[3], x.p = x.p, nbeta.p = dim(x.p)[4], harvest = harvest)
-
-
-system.time({
-  out_harvest <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                      model.file = "Harvest_Model.txt", n.chains = nc, 
-                      n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
-}) 
-
-
-print(out_harvest)
+Mar11harvest_lik_20000 <- readRDS("Results/Mar11harvest_lik_20000.rds")
+Mar11harvest_Xlik_20000 <- readRDS("Results/Mar11harvest_Xlik_20000.rds")
+print(Mar11harvest_Xlik_20000)
 
 
 
-saveRDS(harvest_X, file = "harvest_X_resultsFeb1.rds")
 
+
+
+
+library(loo)
+lp <- sout_harvXlik$sims.list$score.year
+lp1 <- lp[, 2:dim(lp)[2]]
+waic(lp1)
+#Computed from 30000 by 24 log-likelihood matrix
+
+#Estimate    SE
+#elpd_waic  -4155.9 196.9
+#p_waic       268.6  16.2
+#waic        8311.8 393.8
+
+#24 (100.0%) p_waic estimates greater than 0.4. We recommend trying loo instead.
+
+loo(lp1)
+#Computed from 30000 by 24 log-likelihood matrix
+
+#Estimate    SE
+#elpd_loo  -4150.9 196.7
+#p_loo       263.6  14.9
+#looic      8301.8 393.5
+#------
+#  Monte Carlo SE of elpd_loo is NA.
+
+#Pareto k diagnostic values:
+#  Count Pct.    Min. n_eff
+#(-Inf, 0.5]   (good)      0     0.0%   <NA>      
+#  (0.5, 0.7]   (ok)        0     0.0%   <NA>      
+#  (0.7, 1]   (bad)       4    16.7%   43        
+#(1, Inf)   (very bad) 20    83.3%   5         
+#See help('pareto-k-diagnostic') for details.
+#Warning messages:
+#  1: Relative effective sample sizes ('r_eff' argument) not specified.
+#For models fit with MCMC, the reported PSIS effective sample sizes and 
+#MCSE estimates will be over-optimistic. 
+#2: Some Pareto k diagnostic values are too high. See help('pareto-k-diagnostic') for details.
+
+lpy <- sout_harvXlik$sims.list$y.prob
+lpy1 <- lpy[, , 2:dim(lpy)[3]]
+
+str(lpy1)
+
+d <- matrix(NA, dim(lpy1)[2], dim(lpy1)[3])
+for(k in 1:dim(lpy1)[3]){
+  for(i in 1:dim(lpy1)[2]){
+    d[i, k] <- log(mean(lpy1[1:dim(lpy1)[1], i, k]))
+  }
+}
+
+d1 <- sum(colSums(d))
+
+p <- array(NA, dim = dim(lpy1))
+v <- matrix(NA, dim(lpy1)[2], dim(lpy1)[3])
+for(k in 1:dim(lpy1)[3]){
+  for(i in 1:dim(lpy1)[2]){
+    for(s in 1:dim(lpy1)[1]){
+      p[s, i, k] <- log(lpy1[s, i, k])
+    }
+    v[i, k] <- var(p[, i, k])
+  }
+}
+
+v1 <- sum(colSums(v))
+
+w <- -2*d1 + 2*v1
+print(w) # 8301.708 for harvest interaction model 
+# 8307.112 for no interaction harvest model 

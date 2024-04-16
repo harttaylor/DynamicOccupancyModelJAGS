@@ -15,10 +15,9 @@ library(reshape2)
 
 
 # AUC for distance to edge model with no random year effect 
-post <- out_edge$sims.list
+post <- out_cov_edge$sims.list
 n.sav <- dim(post$z)[1] 
 nsite <- win.data$nsite
-
 psi.pred <- array(dim=c(nsite, n.sav))
 Z.est <- array(dim=c(nsite, n.sav))
 year = 2
@@ -51,7 +50,8 @@ p1 <- ggplot(ROC1, aes(x=fpr, y=tpr, group=iter)) +
   geom_abline(intercept = 0, slope = 1, linetype="dashed") +
   ylab("True positive rate") +
   xlab("False positive rate") + theme_bw()
-ggsave("Results/Model Eval/ROC_EDGE.png")
+print(p1)
+ggsave("Results/Model Eval/ROC_LOGEDGE.png")
 
 ROC2 <- ROC1[sample(nrow(ROC1), size = 1000), ]
 ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
@@ -59,12 +59,12 @@ ggplot(ROC2, aes(x=fpr, y=tpr, group=iter)) +
   geom_abline(intercept = 0, slope = 1, linetype="dashed") +
   ylab("True positive rate") +
   xlab("False positive rate") + theme_bw()
-ggsave("Results/Model Eval/AUC_EDGE.png")
+ggsave("Results/Model Eval/AUC_LOGEDGE.png")
 
-mean(AUC) # 0.8905614
-
+mean(AUC) # 0.890187 for linear dist to edge 
+mean(AUC) # 0.8883817 for log dist to edge 
 # Only a very small change in AUC when comparing the distance to edge random effect of year vs no random effect of year models (Adding the random effect 
-# imrpoves AUC score by 0.014). DIC for Edge_RE model=9884.689, DIC for Edge model= 9875.707, so DIC scores say the no RE model is better 
+# imrpoves AUC score by 0.014). DIC for Edge_RE model=9884.689, DIC for Edge model= 9909.905, so DIC scores say the no RE model is better 
 # easier to interpret results using the model without the random effect for year. Possible explanations:
 # 1. Limited Variation Across Years: If the impact of the year on colonization and persistence probabilities is relatively uniform across the years studied, 
 # the random effect for year may not capture much additional variation.
@@ -129,7 +129,7 @@ mean(AUC) # 0.9053925 for out_cov_RE at 12000 iterations
 
 
 #AUC for harvest model no interaction 
-post <- out_harvRE$sims.list
+post <- out_harvlik$sims.list
 n.sav <- dim(post$z)[1]  # Number of saved iterations
 nsite <- win.data$nsite   # Number of sites
 nyear <- win.data$nyear   # Number of years
@@ -184,6 +184,7 @@ ggplot(ROC2, aes(x = fpr, y = tpr, group = iter)) +
 
 # Calculate average AUC
 avg_auc <- mean(AUC, na.rm = TRUE) #0.8737484 for harvest no INT 
+print(avg_auc)
 # 0.8887167 for harvest no INT, RE 
 
 mean(AUC) #0.8734311 for harvest interaction model 
@@ -212,11 +213,9 @@ mean(AUC) #0.8734311 for harvest interaction model
 library(jagsUI)
 library(loo)
 
-#out_cov is model output 
-
 # Extract log-likelihoods (lprob.y) from model output
 # It should be a 3D array with dim corresponding to mcmc iterations, chains, and data points (observations)
-log_lik_values <- out_cov_dist_interaction3000$sims.list$lprob.y
+log_lik_values <- out_harvlik$sims.list$l.score
 dim(log_lik_values)
 
 # Reshape lprob.y for WAIC calculation, loo package requires the log likelihoods to be in a 2D matrix where each row represents 
@@ -234,7 +233,7 @@ for (m in 1:n_mcmc_samples) {
 
 # Assuming 'log_lik_matrix' is already created
 n_chains <- 3
-n_iterations_per_chain <- 1500  # Post-burn-in iterations
+n_iterations_per_chain <- 10000  # Post-burn-in iterations
 
 # Calculate relative effective sample sizes
 r_eff <- relative_eff(log_lik_matrix, chain_id = rep(1:n_chains, each = n_iterations_per_chain))

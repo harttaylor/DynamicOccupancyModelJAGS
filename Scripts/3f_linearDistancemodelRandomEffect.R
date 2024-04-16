@@ -23,7 +23,7 @@ system.time({
 
 
 print(RE_edge)
-saveRDS(RE_edge, file = "Results/RE_linearEDGE_30000Feb20.rds")
+saveRDS(RE_edge, file = "Results/RE_linearEDGE_30000Feb24.rds")
 
 
 

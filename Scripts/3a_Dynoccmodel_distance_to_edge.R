@@ -4,12 +4,9 @@ setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModel
 library(jagsUI)
 
 # Set up some required arrays
-load("Data/dets_array.RData")
-y <- dets_array
 
-load("covariatearraysFeb16.Rdata")
-#length(which(is.na(dets_array)))#1042
-#length(which(is.na(detection_covariates_array)))
+load("covariatearraysFeb19.Rdata")
+
 
 # Set up some arrays to run the model 
 # Add na.rm = TRUE to the inits function (otherwise most of the intial values will be NA)
@@ -61,16 +58,22 @@ names(scaled_covariates) <- covariate_columns_to_scale
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
 # Add log distances to test the log relationship 
-# yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
-# yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
-# yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
-# yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
+yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
 
-# try with quadratic distances 
-yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
-yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
-yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
-yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
+# Inverse relationships
+yearly_covariates$inv.SEIS <- 1 / (distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$inv.ROAD <- 1 / (distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$inv.PIPE <- 1 / (distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$inv.HARV <- 1 / (distance_covariates$NEAR.DIST.harvest + 1)
+
+# Square root relationships
+yearly_covariates$sqrt.SEIS <- sqrt(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$sqrt.ROAD <- sqrt(distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$sqrt.PIPE <- sqrt(distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$sqrt.HARV <- sqrt(distance_covariates$NEAR.DIST.harvest + 1)
 
 
 # Make an array for distance variables 
@@ -79,7 +82,7 @@ sites <- unique(yearly_covariates$SS)
 years <- unique(yearly_covariates$YEAR)
 
 # Change as needed when adding in the quadratic distances or log distances 
-num_covariates <- 8
+num_covariates <- 4
 
 # Initialize the array with NA values
 yearly_covariates_array <- array(NA, dim = c(length(sites), length(years), num_covariates))
@@ -90,17 +93,16 @@ for (i in 1:length(sites)) {
     
     if (nrow(covs_rows) > 0) {
       first_row <- covs_rows[1, ]
-      covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
-                                      "NEAR.DIST.unimproved.road", 
-                                      "NEAR.DIST.pipeline",
-                                      "NEAR.DIST.harvest", "seis.2", "road.2", "pipe.2", "harv.2")]
+      covariate_data <- first_row[, c("inv.SEIS", "inv.ROAD", "inv.PIPE", "inv.HARV")]
       yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } 
   }
 }
 
 #"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
-#"seis.2", "road.2", "pipe.2", "harv.2"
+#"inv.SEIS", "inv.ROAD", "inv.PIPE", "inv.HARV"
+#"sqrt.SEIS", "sqrt.ROAD", "sqrt.PIPE", "sqrt.HARV"
+#"NEAR.DIST.conventional.seismic", "NEAR.DIST.unimproved.road", "NEAR.DIST.pipeline","NEAR.DIST.harvest"
 
 # Create x.phi and x.gamma arrays for distance to edge covariates 
 x.phi <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3] + 1))
@@ -143,7 +145,7 @@ for (i in 1:dim(x.p)[1]) {
 
 # Create the site x year indicator matrix
 # indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
-#ind = apply(y, c(1, 2), max, na.rm = TRUE)
+ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 # Run distance to edge model with no random year effect 
 # But with a log effect 
@@ -152,9 +154,9 @@ params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "alp
 
 
 # MCMC settings
-ni <- 10000
+ni <- 100
 nt <- 1
-nb <- 5000
+nb <- 50
 nc <- 3
 
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi, 
@@ -162,90 +164,16 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  REquad_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                            model.file = "DistancetoEdge_RE.txt", n.chains = nc, 
+  out_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                            model.file = "DistancetoEdgeModel.txt", n.chains = nc, 
                             n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(REquad_edge)
-print(out_edge$sims.list)
-print(summary(out_tau_edge$mean$tau))
-saveRDS(out_quad_edge, file = "Results/QUADEDGE_resultsFeb12.rds")
+print(out_edge)
+saveRDS(RElog_edge, file = "Results/QUADEDGE_resultsFeb12.rds")
 
-saveRDS(out_log_edge, file = "Results/LOGEDGE_resultsFeb12.rds")
-
-out_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
+RElog_edge <- readRDS("Results/EDGE_resultsFeb3.rds")
 
 
 
-
-
-# define a mappign from JAGS parameter names to more descriptive labels 
-param_descriptions <- c("beta.psi[1]" = "Beta.Psi.Intercept", 
-                        "beta.psi[2]" = "Beta.Psi.Percent.Conifer", 
-                        "beta.psi[3]" = "Beta.Psi.Peco.Squared",
-                        "beta.psi[4]" = "Beta.Psi.Stand.Age",
-                        "beta.phi[1]" = "Beta.Phi.Intercept",
-                        "beta.phi[2]" = "Beta.Phi.Dist.Seismis.Line",
-                        "beta.phi[3]" = "Beta.Phi.Dist.Road",
-                        "beta.phi[4]" = "Beta.Phi.Dist.Pipeline",
-                        "beta.phi[5]" = "Beta.Phi.Dist.Harvest",
-                        "beta.gamma[1]" = "Beta.Gamma.Intercept",
-                        "beta.gamma[2]" = "Beta.Gamma.Dist.Seis",
-                        "beta.gamma[3]" = "Beta.Gamma.Dist.Road",
-                        "beta.gamma[4]" = "Beta.Gamma.Dist.Pipeline",
-                        "beta.gamma[4]" = "Beta.Gamma.Dist.Harvest",
-                        "beta.p[1]" = "Beta.P.Intercept", 
-                        "beta.p[2]" = "Beta.P.Julian.Day", 
-                        "beta.p[3]" = "Beta.P.TSSR")
-
-
-
-
-
-##---- Diagnostic checks----
-# Perform diagnostic checks on MCMC model output
-library(coda)
-
-jagsUI::traceplot(out_cov_dist12001)
-
-
-# List of parameters
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N")
-
-# Extract the samples list from out_cov
-samples_list <- out_cov$sims.list
-
-# Loop through each parameter and perform diagnostics
-for (param in params) {
-  # Convert the samples to an mcmc object
-  mcmc_param <- mcmc(as.matrix(samples_list[[param]]))
-  
-  # Print the summary
-  print(paste("Summary for", param))
-  print(summary(mcmc_param))
-  
-  # Trace plot for visual inspection of convergence
-  traceplot(mcmc_param, main=paste("Traceplot for", param))
-  
-  # Density plot for posterior distribution
-  densplot(mcmc_param, main=paste("Density Plot for", param))
-  
-  # Autocorrelation plot
-  autocorr.plot(mcmc_param, main=paste("Autocorrelation for", param))
-  
-  # Calculating Effective Sample Size (ESS)
-  ess_param <- effectiveSize(mcmc_param)
-  print(paste("Effective Sample Size for", param, ":", ess_param))
-  
-  # Check for convergence using Gelman-Rubin diagnostic (requires multiple chains)
-  if (is.mcmc.list(mcmc_param) && dim(mcmc_param)[1] > 1) {
-    gelman_diag <- gelman.diag(mcmc_param)
-    print(paste("Gelman Diagnostic for", param))
-    print(gelman_diag)
-    
-    gelman_plot <- gelman.plot(mcmc_param, main=paste("Gelman Plot for", param))
-    print(gelman_plot)
-  }
-}

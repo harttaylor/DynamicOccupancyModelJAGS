@@ -3,10 +3,10 @@ setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModel
 library(jagsUI)
 
 # Set up some required arrays
-load("Data/dets_array.RData")
-y <- dets_array
+#load("Data/dets_array.RData")
+#y <- dets_array
 
-load("Data/allCLcovs24Jan2024.Rdata")
+#load("Data/allCLcovs24Jan2024.Rdata")
 #length(which(is.na(dets_array)))#1042
 
 # Get harvest related covariates to test the harvest*age interaction 

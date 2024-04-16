@@ -50,7 +50,10 @@ distance_covariates <- yearly_covariates[c("SS", "YEAR", "NEAR.DIST.conventional
 
 # Identify the columns to scale (exclude 'SS' and 'YEAR' columns)
 covariate_columns_to_scale <- names(distance_covariates)[!names(distance_covariates) %in% c("SS", "YEAR")]
-
+max(distance_covariates$NEAR.DIST.unimproved.road)
+min(distance_covariates$NEAR.DIST.pipeline)
+max(distance_covariates$NEAR.DIST.conventional.seismic)
+max(distance_covariates$NEAR.DIST.harvest)
 # Divide covariates by 1000 to 'scale' them 
 scaled_covariates <- as.data.frame(lapply(covariate_columns_to_scale, function(column_name) {
   distance_covariates[[column_name]] / 1000
@@ -61,6 +64,24 @@ names(scaled_covariates) <- covariate_columns_to_scale
 
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
+
+# Add log distances to test the log relationship 
+yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
+
+# Inverse relationships
+yearly_covariates$inv.SEIS <- 1 / (distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$inv.ROAD <- 1 / (distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$inv.PIPE <- 1 / (distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$inv.HARV <- 1 / (distance_covariates$NEAR.DIST.harvest + 1)
+
+# Square root relationships
+yearly_covariates$sqrt.SEIS <- sqrt(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$sqrt.ROAD <- sqrt(distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$sqrt.PIPE <- sqrt(distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$sqrt.HARV <- sqrt(distance_covariates$NEAR.DIST.harvest + 1)
 
 
 # Make an array for distance variables 
@@ -80,14 +101,17 @@ for (i in 1:length(sites)) {
     
     if (nrow(covs_rows) > 0) {
       first_row <- covs_rows[1, ]
-      covariate_data <- first_row[, c("NEAR.DIST.conventional.seismic", 
-                                      "NEAR.DIST.unimproved.road", 
-                                      "NEAR.DIST.pipeline",
-                                      "NEAR.DIST.harvest")]
+      covariate_data <- first_row[, c("log.SEIS", "log.ROAD", "log.PIPE", "log.HARV")]
       yearly_covariates_array[i, j, ] <- as.numeric(covariate_data)
     } 
   }
 }
+head(yearly_covariates_array)
+#"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
+#"inv.SEIS", "inv.ROAD", "inv.PIPE", "inv.HARV"
+#"sqrt.SEIS", "sqrt.ROAD", "sqrt.PIPE", "sqrt.HARV"
+#"NEAR.DIST.conventional.seismic", "NEAR.DIST.unimproved.road", "NEAR.DIST.pipeline","NEAR.DIST.harvest"
+
 
 
 # Create x.phi and x.gamma arrays for distance to edge covariates 
@@ -100,53 +124,15 @@ for(i in 1:dim(yearly_covariates_array)[2]){
 x.gamma <- x.phi
 
 # Run this if you are adding random year effect as intercept 
-# x.phi.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
-# x.gamma.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
-# for(i in 1:dim(yearly_covariates_array)[2]){
+x.phi.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
+x.gamma.nointercept <- array(NA, dim = c(dim(yearly_covariates_array)[1], dim(yearly_covariates_array)[2], dim(yearly_covariates_array)[3]))
+ for(i in 1:dim(yearly_covariates_array)[2]){
 # Directly use all covariates without adding an intercept column
-#  x.phi.nointercept[, i, ] <- yearly_covariates_array[, i, ]
-#  x.gamma.nointercept[, i, ] <- yearly_covariates_array[, i, ]
-#}
-
-
-# Read and preprocess the detection covariates
-detcovs <- read.csv("Data/detcovs.csv")
-detcovs <- detcovs[detcovs$YYYY != "2004",]
-detcovs <- detcovs[detcovs$SS %in% sites_to_keep, ]
-detcovsready <- select(detcovs, c("SS", "ROUND", "YYYY", "jday", "tssr"))
-
-# Extract unique sites, years, and set parameters
-unique_sites <- unique(detcovsready$SS)
-unique_years <- sort(unique(detcovsready$YYYY))
-nsite <- length(unique_sites)
-nyear <- length(unique_years)
-nvisits <- 4 # Assuming this is your maximum number of visits
-ncovariates <- 2  # Number of covariates
-
-# Initialize the 4D array with NAs
-detection_covariates_array <- array(NA, dim = c(nsite, nyear, nvisits, ncovariates))
-
-for (site in 1:nsite) {
-  for (year in 1:nyear) {
-    for (visit in 1:nvisits) {
-      # Check if the detection matrix has NA for this site, year, and visit
-      if (is.na(y[site, year, visit])) {
-        # Assign NA to all covariates for this site, year, and visit
-        detection_covariates_array[site, year, visit, ] <- NA
-      } else {
-        # Your existing logic to populate covariates
-        site_year_data <- detcovsready[detcovsready$SS == unique_sites[site] & detcovsready$YYYY == unique_years[year], ]
-        visit_data <- site_year_data[site_year_data$ROUND == visit, ]
-        if (nrow(visit_data) == 1) {
-          detection_covariates_array[site, year, visit, 1] <- visit_data$jday
-          detection_covariates_array[site, year, visit, 2] <- visit_data$tssr
-        } else {
-          detection_covariates_array[site, year, visit, 1:2] <- NA
-        }
-      }
-    }
-  }
+  x.phi.nointercept[, i, ] <- yearly_covariates_array[, i, ]
+  x.gamma.nointercept[, i, ] <- yearly_covariates_array[, i, ]
 }
+
+
 
 # Add covariates on p
 # Adding an intercept
@@ -168,17 +154,21 @@ for (i in 1:dim(x.p)[1]) {
   }
 }
 
+# Checks to make sure the NAs/visits match 
 head(x.p[, 2, ,])
 head(y[, 2, ])
 
 head(x.p[12, , ,])
 head(y[12, , ])
+
+
 # Create the site x year indicator matrix
 # indicator of whether the species was ever detected at that site in that year, used in the likelihood calculation in jags model 
 ind = apply(y, c(1, 2), max, na.rm = TRUE)
 
 
-params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "phi", "gamma", "psi", "N", "z", "muZ", "lprob.y")
+
+params <- c("beta.psi", "beta.phi", "beta.gamma", "beta.p", "l.score", "y.prob", "N", "score.year", "hmean.turn", "z", "muZ")
 
 
 # MCMC settings
@@ -192,10 +182,89 @@ win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J =
 
 
 system.time({
-  out_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
-                   model.file = "CorrectPModel.txt", n.chains = nc, 
+  log_edge <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                   model.file = "CorrectPModelMar12.txt", n.chains = nc, 
                    n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 }) 
 
 
-print(out_edge)
+print(log_edge)
+
+
+saveRDS(log_edge, file = "Results/Edge model/Apr12LogEdgeResults.rds")
+
+
+# With random year effect on interecpt of peristence and colonization 
+params <- c("beta.psi", "beta.phi", "beta.gamma", "alpha.phi", "alpha.gamma", "beta.p", "l.score", "y.prob", "N", "score.year", "hmean.turn", "z", "muZ")
+
+
+# MCMC settings
+ni <- 30000
+nt <- 1
+nb <- 15000
+nc <- 3
+
+win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J, x.psi = x.psi, nbeta.psi = ncol(x.psi), x.phi = x.phi.nointercept, 
+                 nbeta.phi = dim(x.phi.nointercept)[3], x.gamma = x.gamma.nointercept, nbeta.gamma = dim(x.gamma.nointercept)[3], x.p = x.p, nbeta.p = dim(x.p)[4],
+                 ind = ind)
+
+
+system.time({
+  invRE <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+                   model.file = "CorrectPModel_RE.txt", n.chains = nc, 
+                   n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
+}) 
+
+
+print(invRE)
+
+saveRDS(invRE, file = "Results/Edge model/Apr12inverseRE_EdgeResults.rds")
+
+logedge <- readRDS("Results/Edge model/Apr12LogEdgeResults.rds")
+print(logedge)
+
+edge <- readRDS("Results/Edge model/Apr11EdgeResultsLik.rds")
+print(edge)
+
+edgeRE <- readRDS("Results/Apr12RE_EdgeResultsLik.rds")
+print(edgeRE)
+
+logedgeRE <- readRDS("Results/Edge model/Apr12logRE_EdgeResults.rds")
+print(logedgeRE)
+
+
+library(loo)
+lp <- edgeRE$sims.list$score.year
+lp1 <- lp[, 2:dim(lp)[2]]
+waic(lp1)
+loo(lp1)
+
+lpy <- edgeRE$sims.list$y.prob
+lpy1 <- lpy[, , 2:dim(lpy)[3]]
+
+str(lpy1)
+
+d <- matrix(NA, dim(lpy1)[2], dim(lpy1)[3])
+for(k in 1:dim(lpy1)[3]){
+  for(i in 1:dim(lpy1)[2]){
+    d[i, k] <- log(mean(lpy1[1:dim(lpy1)[1], i, k]))
+  }
+}
+
+d1 <- sum(colSums(d))
+
+p <- array(NA, dim = dim(lpy1))
+v <- matrix(NA, dim(lpy1)[2], dim(lpy1)[3])
+for(k in 1:dim(lpy1)[3]){
+  for(i in 1:dim(lpy1)[2]){
+    for(s in 1:dim(lpy1)[1]){
+      p[s, i, k] <- log(lpy1[s, i, k])
+    }
+    v[i, k] <- var(p[, i, k])
+  }
+}
+
+v1 <- sum(colSums(v))
+
+w <- -2*d1 + 2*v1
+print(w)

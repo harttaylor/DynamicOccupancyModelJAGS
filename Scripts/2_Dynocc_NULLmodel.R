@@ -34,22 +34,27 @@ J <- do.call(rbind, lapply(1:dim(y)[1], function(i){
 win.data <- list(y = y, nsite = dim(y)[1], nyear = dim(y)[2], nsurv = nsurv, J = J)
 
 # Parameters monitored
-params <- c("psi1", "phi", "gamma", "tau", "n.occ", "growthr", "turnover")
+params <- c("psi1", "phi", "gamma", "n.occ", "growthr", "turnover", "z")
 
 # MCMC settings
-ni <- 100
+ni <- 1000
 nt <- 1
-nb <- 50
+nb <- 500
 nc <- 3
 
 # Call JAGS from R and run the model 
 system.time({
-  out_tau <- jags(data = win.data, inits = inits, parameters.to.save = params, 
+  out <- jags(data = win.data, inits = inits, parameters.to.save = params, 
               model.file = "cl_model_NULL.txt", n.chains = nc, 
               n.thin = nt, n.iter = ni, n.burnin = nb, parallel = TRUE)
 })
 
-print(out_tau)
+mean(out$mean$turnover) #0.1372772
+print(min(out$mean$turnover)) #0.03769864
+print(max(out$mean$turnover)) #0.2496167
+
+mean_z <- as.data.frame(out$mean$z)
+write.csv(mean_z, "Data/MeanOccupancyProbability.csv")
 
 # Make quick plots
 df1 <- data.frame(Year = 1994:2017, Gamma = out$mean$gamma)
@@ -80,8 +85,9 @@ map_plot <- ggplot() +
   scale_color_manual(values = c("Colonization" = "#1B9E77", "Persistence" = "#D95F02")) +
   scale_x_continuous(name = "Year", breaks = seq(1994, 2017, by = 5)) +
   scale_y_continuous(name = "Probability", breaks = seq(0.1, 1, by = 0.1)) +
-  theme_classic(base_size = 12) +
-  theme(legend.position = "bottom") +
+  theme_classic(base_size = 16) +
+  theme(legend.position = "bottom",
+        text = element_text(family = "Times New Roman")) +
   labs(color = "")
 
 print(map_plot)
@@ -97,7 +103,8 @@ occupancy_plot <- ggplot(data = df3, aes(x = Year, y = Psi)) +
   geom_smooth(method = "lm", color = "#377eb8", fill = "#377eb8", alpha = 0.2, size = 0.5) +
   scale_x_continuous(name = "Year", breaks = seq(1993, 2017, by = 5)) +  # Adjust x-axis breaks if needed
   scale_y_continuous(name = "Occupancy Probability", breaks = seq(0, 1, by = 0.1)) +  # Adjust y-axis breaks if needed
-  theme_classic(base_size = 12) 
+  theme_classic(base_size = 22) +
+  theme(text = element_text(family = "Times New Roman"))
 
 print(occupancy_plot)
 # Save the plot at a high resolution
@@ -114,30 +121,30 @@ ggsave("Results/occupancy_plot.png", occupancy_plot, dpi = 300, width = 8, heigh
 print(summary(out_tau_edge$mean$tau))
 mean(out_tau_edge$mean$tau[,1])
 
-mean_turnover <- c(mean(out_tau_edge$mean$tau[,1]), 
-                   mean(out_tau_edge$mean$tau[,2]), 
-                   mean(out_tau_edge$mean$tau[,3]),
-                   mean(out_tau_edge$mean$tau[,4]), 
-                   mean(out_tau_edge$mean$tau[,5]), 
-                   mean(out_tau_edge$mean$tau[,6]), 
-                   mean(out_tau_edge$mean$tau[,7]), 
-                   mean(out_tau_edge$mean$tau[,8]), 
-                   mean(out_tau_edge$mean$tau[,9]),
-                   mean(out_tau_edge$mean$tau[,10]), 
-                   mean(out_tau_edge$mean$tau[,11]), 
-                   mean(out_tau_edge$mean$tau[,12]),
-                   mean(out_tau_edge$mean$tau[,13]), 
-                   mean(out_tau_edge$mean$tau[,14]), 
-                   mean(out_tau_edge$mean$tau[,15]),
-                   mean(out_tau_edge$mean$tau[,16]), 
-                   mean(out_tau_edge$mean$tau[,17]), 
-                   mean(out_tau_edge$mean$tau[,18]), 
-                   mean(out_tau_edge$mean$tau[,19]), 
-                   mean(out_tau_edge$mean$tau[,20]), 
-                   mean(out_tau_edge$mean$tau[,21]),
-                   mean(out_tau_edge$mean$tau[,22]), 
-                   mean(out_tau_edge$mean$tau[,23]), 
-                   mean(out_tau_edge$mean$tau[,24]))
+mean_turnover <- c(mean(out_edge$mean$tau[,1]), 
+                   mean(out_edge$mean$tau[,2]), 
+                   mean(out_edge$mean$tau[,3]),
+                   mean(out_edge$mean$tau[,4]), 
+                   mean(out_edge$mean$tau[,5]), 
+                   mean(out_edge$mean$tau[,6]), 
+                   mean(out_edge$mean$tau[,7]), 
+                   mean(out_edge$mean$tau[,8]), 
+                   mean(out_edge$mean$tau[,9]),
+                   mean(out_edge$mean$tau[,10]), 
+                   mean(out_edge$mean$tau[,11]), 
+                   mean(out_edge$mean$tau[,12]),
+                   mean(out_edge$mean$tau[,13]), 
+                   mean(out_edge$mean$tau[,14]), 
+                   mean(out_edge$mean$tau[,15]),
+                   mean(out_edge$mean$tau[,16]), 
+                   mean(out_edge$mean$tau[,17]), 
+                   mean(out_edge$mean$tau[,18]), 
+                   mean(out_edge$mean$tau[,19]), 
+                   mean(out_edge$mean$tau[,20]), 
+                   mean(out_edge$mean$tau[,21]),
+                   mean(out_edge$mean$tau[,22]), 
+                   mean(out_edge$mean$tau[,23]), 
+                   mean(out_edge$mean$tau[,24]))
 
 # Create a data frame for plotting
 years <- 1:24  # Adjust if your study years are named differently
@@ -145,8 +152,9 @@ turnover_data <- data.frame(Year = years, MeanTurnover = mean_turnover)
 
 # Plot
 ggplot(turnover_data, aes(x = Year, y = MeanTurnover)) +
-  geom_line() +
-  geom_point() +  # Optional: adds points to each year's mean turnover rate
+  geom_line(color = "#377eb8", size = 1) +  # Choose a color that's clear and vision-impaired friendly
+  geom_smooth(method = "lm", color = "#377eb8", fill = "#377eb8", alpha = 0.2, size = 0.5) +
+  geom_point(color = "#377eb8", size = 2) +  # Optional: adds points to each year's mean turnover rate
   labs(title = "Changes in Turnover Over 25 Years",
        x = "Year",
        y = "Mean Turnover") +
@@ -156,7 +164,7 @@ ggsave("Results/YearlyTurnover.png")
 
 
 # Convert the matrix to a long format for use with ggplot
-turnover_data <- reshape2::melt(out_tau_edge$mean$tau)
+turnover_data <- reshape2::melt(out_edge$mean$tau)
 
 # Name the columns appropriately
 names(turnover_data) <- c("Site", "Year", "TurnoverRate")
@@ -194,7 +202,108 @@ library(grid)
 # Read your data (adjust the file paths as necessary)
 coords_data <- read.csv("Data/latslons.csv")
 turnover_data <- read.csv("Data/turnover_data.csv")
+occupancy_data <- read.csv("Data/MeanOccupancyProbability.csv")
 
+
+# Convert the occupancy probabilities to a binary occupied/unoccupied using the 0.5 cutoff
+occupancy_binary <- occupancy_data %>%
+  mutate(across(-1, ~ as.integer(. > 0.5)))  # Convert probabilities to 0 or 1 based on cutoff
+
+# Calculate turnover as the number of changes in occupancy status between consecutive years
+occupancy_turnover <- occupancy_binary %>%
+  rowwise() %>%
+  mutate(Turnover = sum(abs(diff(c_across(-1)))))
+
+# count the number of years occupied for each site
+occupancy_turnover$YearsOccupied <- rowSums(occupancy_binary[,-1])
+
+# Determine the sites that are always occupied, never occupied, or have high turnover
+occupancy_turnover <- occupancy_turnover %>%
+  mutate(StableOccupied = case_when(
+    Turnover > 3 ~ "High Turnover",
+    Turnover <= 3 & YearsOccupied <= 5 ~ "Low Occupancy",
+    Turnover <= 3 & YearsOccupied >= 17 ~ "High Occupancy",
+    TRUE ~ "High Turnover"  # For other cases, you can label them as "Variable" or choose another label
+  ))
+
+# Normalize the turnover data to be between 0 and 1
+max_turnover <- max(occupancy_turnover$Turnover)
+occupancy_turnover <- occupancy_turnover %>%
+  mutate(NormalizedTurnover = Turnover / 25)
+
+#write.csv(coordinates_turnover, "Data/Occu_Turnover.csv")
+#coordinates_turnover <- read.csv("Data/Occu_Turnover.csv")
+max(occupancy_turnover$NormalizedTurnover)
+min(occupancy_turnover$NormalizedTurnover)
+mean(occupancy_turnover$NormalizedTurnover)
+# Now merge this turnover data with your spatial coordinates data
+coordinates <- st_as_sf(coords_data, coords = c('X', 'Y'), crs = 4326)
+coordinates_turnover <- coordinates %>%
+  left_join(occupancy_turnover, by = "Site")
+
+
+seismic_lines_clipped <- readRDS("Human footprint extraction/seismic_lines_clipped.rds")
+pipelines_clipped <- readRDS("Human footprint extraction/pipelines_clipped.rds")
+roads_clipped <- readRDS("Human footprint extraction/roads_clipped.rds")
+harvest_clipped <- readRDS("Human footprint extraction/harvest_clipped.rds")
+
+# Calculate the bounding box
+xmin <- min(coords_data$X)
+xmax <- max(coords_data$X)
+ymin <- min(coords_data$Y)
+ymax <- max(coords_data$Y)
+
+# Manually expand the bounding box
+expand_factor <- 0.2  # Adjust this factor as needed
+xrange <- xmax - xmin
+yrange <- ymax - ymin
+expanded_bbox <- c(xmin - xrange * expand_factor, ymin - yrange * expand_factor, 
+                   xmax + xrange * expand_factor, ymax + yrange * expand_factor)
+
+# Convert expanded_bbox to a named vector
+bbox_named <- setNames(expanded_bbox, c("left", "bottom", "right", "top"))
+
+# Transform all spatial data to WGS 84
+crs_wgs84 <- st_crs(4326)
+coordinates <- st_transform(coordinates, crs_wgs84)
+seismic_lines_clipped <- st_transform(seismic_lines_clipped, crs_wgs84)
+pipelines_clipped <- st_transform(pipelines_clipped, crs_wgs84)
+roads_clipped <- st_transform(roads_clipped, crs_wgs84)
+harvest_clipped <- st_transform(harvest_clipped, crs_wgs84)
+
+# Fetch the terrain map image
+terrain_map <- get_map(location = bbox_named, source = "google", maptype = "terrain", crop = FALSE)
+terrain_raster <- rasterGrob(as.raster(terrain_map), interpolate = TRUE)
+
+# Plot with the terrain map as the background
+map_plot <- ggplot() +
+  annotation_custom(terrain_raster, xmin = bbox_named["left"], xmax = bbox_named["right"], ymin = bbox_named["bottom"], ymax = bbox_named["top"]) +
+  geom_sf(data = seismic_lines_clipped, color = "gray", size = 0.1) +
+  geom_sf(data = harvest_clipped, color = "grey", fill = "white", size = 1) +
+  geom_sf(data = pipelines_clipped, color = "gray", size = 1) +
+  geom_sf(data = roads_clipped, color = "gray", size = 1) +
+  geom_sf(data = coordinates_turnover, aes(color = NormalizedTurnover, shape = StableOccupied), size = 2.7) +
+  scale_color_gradient(low = "blue", high = "red", name = "Turnover Rate") +
+  scale_shape_manual(values = c("High Occupancy" = 16, "Low Occupancy" = 17, "High Turnover" = 15), 
+                     name = "Occupancy Status") +
+  coord_sf(xlim = c(xmin, xmax), ylim = c(ymin, ymax), expand = TRUE) +
+  labs(title = '',
+       x = 'Longitude', 
+       y = 'Latitude') +
+  theme_minimal() +
+  theme(legend.position = "right",
+        legend.key.width = unit(1.5, "cm"),
+        legend.key.height = unit(0.5, "cm"),
+        text = element_text(size = 16))
+print(map_plot)
+ggsave("Results/Feb22HeatmapTurnover.png", dpi = 300)
+
+
+
+
+
+
+# Calculate just turnover 
 # Calculate the average turnover for each site
 average_turnover <- turnover_data %>%
   group_by(Site) %>%
@@ -209,12 +318,8 @@ merged_data <- merge(coords_data, average_turnover, by = "Site")
 # Convert to a simple features (sf) object
 coordinates <- st_as_sf(merged_data, coords = c('X', 'Y'), crs = 4326)
 
-
-
-
 # Load points data with treatment column
 points_data <- read.csv("Data/latslons.csv")
-
 
 
 seismic_lines_clipped <- readRDS("Human footprint extraction/seismic_lines_clipped.rds")
@@ -268,4 +373,4 @@ map_plot <- ggplot() +
         legend.key.width = unit(1.5, "cm"),
         legend.key.height = unit(0.5, "cm"))
 print(map_plot)
-ggsave("Results/YearlyMeanTurnover.png", dpi = 300)
+ggsave("Results/HeatmapTurnover.png", dpi = 300)

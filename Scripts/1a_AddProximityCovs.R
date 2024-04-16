@@ -3,7 +3,7 @@
 setwd("C:/Users/hartt/Documents/Chapter 1/BayesianAnalysis/DynamicOccupancyModelJAGS")
 load("Data/dets_array.Rdata")
 
-#yearly_covariates <- read.csv("Data/UnscaledCovariatesJan31.csv") # These are the final covariates where when there is both pipe and road, pipe is set to 1 (1km away), and they only have 114 sites and year 2004 is removed
+yearly_covariates <- read.csv("Data/UnscaledCovariatesJan31.csv") # These are the final covariates where when there is both pipe and road, pipe is set to 1 (1km away), and they only have 114 sites and year 2004 is removed
 
 # Select relevant covariates along with site names (SS column) and year
 distance_covariates <- yearly_covariates[c("SS", "YEAR", "NEAR.DIST.conventional.seismic", 
@@ -24,17 +24,24 @@ names(scaled_covariates) <- covariate_columns_to_scale
 
 # Combine the unscaled 'SS' and 'YEAR' columns with the scaled covariates
 yearly_covariates <- cbind(distance_covariates[c("SS", "YEAR")], scaled_covariates)
+
 # Add log distances to test the log relationship 
 yearly_covariates$log.SEIS <- log(distance_covariates$NEAR.DIST.conventional.seismic + 1)
 yearly_covariates$log.ROAD <- log(distance_covariates$NEAR.DIST.unimproved.road + 1)
 yearly_covariates$log.PIPE <- log(distance_covariates$NEAR.DIST.pipeline + 1)
 yearly_covariates$log.HARV <- log(distance_covariates$NEAR.DIST.harvest + 1)
 
-# try with quadratic distances 
-yearly_covariates$seis.2 <- (yearly_covariates$NEAR.DIST.conventional.seismic)^2
-yearly_covariates$road.2 <- (yearly_covariates$NEAR.DIST.unimproved.road)^2
-yearly_covariates$pipe.2 <- (yearly_covariates$NEAR.DIST.pipeline)^2
-yearly_covariates$harv.2 <- (yearly_covariates$NEAR.DIST.harvest)^2
+# Inverse relationships
+yearly_covariates$inv.SEIS <- 1 / (distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$inv.ROAD <- 1 / (distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$inv.PIPE <- 1 / (distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$inv.HARV <- 1 / (distance_covariates$NEAR.DIST.harvest + 1)
+
+# Square root relationships
+yearly_covariates$sqrt.SEIS <- sqrt(distance_covariates$NEAR.DIST.conventional.seismic + 1)
+yearly_covariates$sqrt.ROAD <- sqrt(distance_covariates$NEAR.DIST.unimproved.road + 1)
+yearly_covariates$sqrt.PIPE <- sqrt(distance_covariates$NEAR.DIST.pipeline + 1)
+yearly_covariates$sqrt.HARV <- sqrt(distance_covariates$NEAR.DIST.harvest + 1)
 
 # Yearly covariates (human footprint and treatment)as a matrix (format for jags model) 
 # Extract unique sites and years
@@ -64,21 +71,25 @@ for (i in 1:length(sites)) {
   }
 }
 
-#"log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
-#"seis.2", "road.2", "pipe.2", "harv.2"
+# "log.SEIS", "log.ROAD", "log.PIPE", "log.HARV"
+# "inv.SEIS", "inv.ROAD", "inv.PIPE", "inv.HARV"
+# "sqrt.SEIS", "sqrt.ROAD", "sqrt.PIPE", "sqrt.HARV"
+# "NEAR.DIST.conventional.seismic", "NEAR.DIST.unimproved.road", "NEAR.DIST.pipeline", "NEAR.DIST.harvest"
 
 
 
 
 ##----- First year covariates----
 # Now get stand variables for initial year 
-firstyearcovs <- read.csv("Nov28CLcovariates1993only.csv")
+firstyearcovs <- read.csv("Data/Nov28CLcovariates1993only.csv")
 firstyearcovs <- firstyearcovs[c("SS", "WhiteSpruce", "whitespruce.s", "Age", "age.s", "whitespruce.s.2")]
 firstyearcovs <- firstyearcovs[firstyearcovs$SS %in% sites_to_keep, ]
 mean(firstyearcovs$Age)
 sd(firstyearcovs$Age)
 min(firstyearcovs$WhiteSpruce)
 max(firstyearcovs$WhiteSpruce)
+min(firstyearcovs$Age)
+max(firstyearcovs$Age)
 # Prepare variables for dynamic occupancy model 
 
 # First year covariates (percentconifer and standage)
@@ -134,7 +145,7 @@ for (site in 1:nsite) {
     }
   }
 }
-
+detection_covariates_array[13,25,2,2]
 ## ---- Detection covariates - format data in a matrix to model detection ----
 # Read in the detection covariates
 detcovs <- read.csv("Data/detcovs.csv")
@@ -180,7 +191,47 @@ for (site in 1:nsite) {
 
 head(detection_covariates_array)
 
-save(detection_covariates_array, yearly_covariates_array, first_year_covariates, sites_to_keep, file = "covariatearraysFeb16.Rdata")
+save(detection_covariates_array, yearly_covariates_array, first_year_covariates, sites_to_keep, file = "covariatearraysMar2.Rdata")
+
+
+
+
+# Look at distribution of distances to edges 
+seis_plot <- hist(yearly_covariates$seis.2)
+road_plot <- hist(yearly_covariates$road.2)
+pipe_plot <- hist(yearly_covariates$pipe.2)
+harv_plot <- hist(yearly_covariates$harv.2)
+
+# Assuming distance_covariates is your data frame with the distance variables
+seis_plot <- ggplot(distance_covariates, aes(x = NEAR.DIST.conventional.seismic)) +
+  geom_histogram(bins = 30, fill = "lightgreen") +
+  labs(title = "Conventional Seismic", x = "Distance to Seismic Line (m)")
+
+road_plot <- ggplot(distance_covariates, aes(x = NEAR.DIST.unimproved.road)) +
+  geom_histogram(bins = 30, fill = "lightblue") +
+  labs(title = "Unimproved Road", x = "Distance to Road (m)")
+
+pipe_plot <- ggplot(distance_covariates, aes(x = NEAR.DIST.pipeline)) +
+  geom_histogram(bins = 30, fill = "grey") +
+  labs(title = "Pipeline", x = "Distance to Pipeline (m)")
+
+harv_plot <- ggplot(distance_covariates, aes(x = NEAR.DIST.harvest)) +
+  geom_histogram(bins = 30, fill = "pink") +
+  labs(title = "Harvest", x = "Distance to Harvest (m)")
+
+# Combine the plots
+distances_plot <- seis_plot + road_plot + 
+  pipe_plot + harv_plot + 
+  plot_layout(ncol = 2, nrow = 2)
+
+# Display the combined plot
+distances_plot
+
+ggsave("Data/HistogramDistancetoFootprints.png", distances_plot, width = 16, height = 12)
+
+
+
+
 
 # Check for multicollinearity using VIF 
 library(car)
