@@ -1,0 +1,102 @@
+model{
+  # Priors 
+  # Normal priors for delta coefficients (age) when there is harvest[i, k] == 1
+  delta.phi[1] ~ dnorm(0, 0.01)
+  delta.gamma[1] ~ dnorm(0, 0.01)
+
+  # Expect near constant values for delta coefficients (age) when there is no harvest[i, k] == 2
+  delta.phi[2] ~ dnorm(0, 100)  # Very high precision
+  delta.gamma[2] ~ dnorm(0, 100)  # Very high precision 
+
+  # Normal priors for beta coefficients (distance) when there is harvest[i, k] == 1
+  beta.phi[1] ~ dnorm(0, 0.01)
+  beta.gamma[1] ~ dnorm(0, 0.01)
+
+  # Expect near constant values for beta coefficients (distance) when there is no harvest[i, k] == 2
+  beta.phi[2] ~ dnorm(0, 100)  # Very high precision
+  beta.gamma[2] ~ dnorm(0, 100)  # Very high precision 
+
+  # Add prior for interaction parameter - normal priors 
+  delta.phi.interaction[1] ~ dnorm(0, 0.01)
+  delta.gamma.interaction[1] ~ dnorm(0, 0.01)
+
+  # Psi (initial occupancy probability)
+  for(i in 1:nbeta.psi){
+    beta.psi[i] ~ dnorm(0, 0.01)
+  }
+  
+  # Phi (persistence): create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest
+  for(k in 1:2){
+    alpha.phi[k] ~ dnorm(0, 0.01)
+	}
+  
+  # Gamma (colonization): create a matrix with 2 columns (1 for each set of betas) to represent relationships for harvest vs. no harvest 
+  for(k in 1:2){
+    alpha.gamma[k] ~ dnorm(0, 0.01)
+	}
+   
+  # P (detection probability)
+   for(i in 1:nbeta.p){
+     beta.p[i] ~ dnorm(0, 0.01)  # Detection  
+  }
+  
+
+   # Ecological sub-model 
+  for(i in 1:nsite){
+    lpsi[i] <- inprod(beta.psi, x.psi[i, ])
+	muZ[i, 1] <- exp(lpsi[i])/(1 + exp(lpsi[i]))
+    z[i, 1] ~ dbern(muZ[i, 1])
+
+    
+    for(k in 2:nyear){
+	  # The harvest[i] indexes which column of betas to use (1 or 2)
+      logit(phi[i, k - 1]) <- alpha.phi[harvest[i, k]] + delta.phi[harvest[i, k]]*harvest_age[i, k] + beta.phi[harvest[i, k]]*harvest_distance[i, k]
+          			        + delta.phi.interaction[1] * harvest_interaction[i, k] * step(harvest[i, k] - 1)
+      logit(gamma[i, k - 1]) <- alpha.gamma[harvest[i, k]] + delta.gamma[harvest[i, k]]*harvest_age[i, k] + beta.gamma[harvest[i, k]]*harvest_distance[i, k]
+                                        + delta.gamma.interaction[1] * harvest_interaction[i, k] * step(harvest[i, k] - 1)
+
+      muZ[i, k] <- z[i, k - 1]*phi[i, k - 1] + (1 - z[i, k - 1])*gamma[i, k - 1] 
+      z[i, k] ~ dbern(muZ[i, k])
+    }
+  }
+  
+  # Detection sub-model
+  for(i in 1:nsite){
+    for(k in 1:nyear){
+      for(j in 1:J[i, k]){
+        logit(p[i, k, j]) <- inprod(beta.p, x.p[i, k, nsurv[i, k, j], ])
+        muy[i, k, j] <- z[i, k] * p[i, k, j]
+        y[i, k, nsurv[i, k, j]] ~ dbern(muy[i, k, j])
+      }
+    }
+  }  
+
+# Caluclate the model likelihood (note change in order of indexing
+  for(k in 2:nyear){
+    for(i in 1:nsite){
+     for(j in 1:J[i, k]){
+	   # The model estimated probability of seeing the result you saw, given the site was occupied
+	   prob1[i, k, j] <- pow(p[i, k, j], y[i, k, nsurv[i, k, j]])*pow((1-p[i, k, j]),(1-y[i, k, nsurv[i, k, j]]))
+	   # The model predicted probability of not detecting the species, given the site was occupied
+       prob2[i, k, j] <- 1-p[i, k, j]
+	 }
+	 # If species was detected at site, the model predicted probability of occupancy*the probabiltiy of getting the detection history; otherwise 0
+	 term1[i, k] <- ind[i, k]*muZ[i, k]*prod(prob1[i, k, 1:J[i, k]])
+	 # If species was never detected, the model predicted probability the site was not occupied + the probability of getting an all-zero detection history given the site was occupied; otherwise 0
+	 term2[i, k] <- (1 - ind[i, k])*((1 - muZ[i, k]) + muZ[i, k]*prod(prob2[i, k, 1:J[i, k]]))
+	 
+	 # Get the log likelihood of the data at site i in year k, given the model predicted probabilties 
+	 y.prob[i, k] <- term1[i, k] + term2[i, k]
+	 lprob.y[i, k] <- log(y.prob[i, k])
+    }
+	# Sum the log likelihoods across all sites in year k (the likelihood score for year k)
+    score.year[k] <- sum(lprob.y[1:nsite, k])
+  }
+  #Sum across likelihood scores across years and multiply by -2 (the likelihood score; AKA the Deviance)
+  l.score <- -2*sum(score.year[2:nyear])
+
+  # Derived variables
+  for(k in 1:nyear) {
+    N[k] <- sum(z[,k]) # no. sites occupied for each year
+  }
+}
